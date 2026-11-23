@@ -21,7 +21,6 @@ logs/
 *.log
 
 # tooling
-.qoder-credits/
 .playwright-mcp/
 .idea/
 .vscode/
