@@ -1,0 +1,371 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  admin
+  grade_director
+  head_teacher
+  subject_teacher
+}
+
+enum StudentStatus {
+  active
+  graduated
+  left
+}
+
+enum SubjectCategory {
+  cultural
+  other
+}
+
+enum ExamType {
+  monthly
+  midterm
+  final
+  other
+}
+
+enum ExamStatus {
+  active
+  archived
+}
+
+enum ImportBatchStatus {
+  uploaded
+  parsed
+  mapping_confirmed
+  validated
+  committed
+  failed
+}
+
+enum ScoreChangeAction {
+  import
+  overwrite
+  correction
+  rollback
+}
+
+model User {
+  id           String   @id @default(uuid())
+  username     String   @unique
+  passwordHash String   @map("password_hash")
+  displayName  String   @map("display_name")
+  status       String   @default("active")
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  roles               UserRole[]
+  headTeacherClasses  Class[]             @relation("ClassHeadTeacher")
+  gradeDirectors      GradeDirector[]
+  teachingAssignments TeachingAssignment[]
+  importBatches       ImportBatch[]
+  scoreChanges        ScoreChangeLog[]
+  auditLogs           AuditLog[]
+  examsCreated        Exam[]              @relation("ExamCreatedBy")
+
+  @@map("users")
+}
+
+model UserRole {
+  id     String @id @default(uuid())
+  userId String @map("user_id")
+  role   Role
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, role])
+  @@map("user_roles")
+}
+
+model AcademicTerm {
+  id         String    @id @default(uuid())
+  schoolYear String    @map("school_year")
+  termNo     Int       @map("term_no")
+  name       String
+  startDate  DateTime? @map("start_date") @db.Date
+  endDate    DateTime? @map("end_date") @db.Date
+  isCurrent  Boolean   @default(false) @map("is_current")
+  createdAt  DateTime  @default(now()) @map("created_at")
+
+  grades              Grade[]
+  exams               Exam[]
+  enrollments         StudentTermEnrollment[]
+  teachingAssignments TeachingAssignment[]
+
+  @@unique([schoolYear, termNo])
+  @@map("academic_terms")
+}
+
+model Grade {
+  id        String @id @default(uuid())
+  termId    String @map("term_id")
+  entryYear Int    @map("entry_year")
+  level     Int
+  name      String
+
+  term      AcademicTerm    @relation(fields: [termId], references: [id])
+  classes   Class[]
+  exams     Exam[]
+  directors GradeDirector[]
+
+  @@unique([termId, level])
+  @@index([entryYear])
+  @@map("grades")
+}
+
+model ClassGroup {
+  id        String @id @default(uuid())
+  entryYear Int    @map("entry_year")
+  name      String
+  sortOrder Int    @default(0) @map("sort_order")
+
+  classes Class[]
+
+  @@unique([entryYear, name])
+  @@map("class_groups")
+}
+
+model Class {
+  id            String  @id @default(uuid())
+  gradeId       String  @map("grade_id")
+  classGroupId  String  @map("class_group_id")
+  name          String
+  headTeacherId String? @map("head_teacher_id")
+  sortOrder     Int     @default(0) @map("sort_order")
+
+  grade        Grade                @relation(fields: [gradeId], references: [id])
+  classGroup   ClassGroup           @relation(fields: [classGroupId], references: [id])
+  headTeacher  User?                @relation("ClassHeadTeacher", fields: [headTeacherId], references: [id])
+  enrollments  StudentTermEnrollment[]
+  teachingAssignments TeachingAssignment[]
+  scores       Score[]
+  importBatches ImportBatch[]
+
+  @@unique([gradeId, name])
+  @@map("classes")
+}
+
+model Student {
+  id        String        @id @default(uuid())
+  studentNo String        @unique @map("student_no")
+  name      String
+  status    StudentStatus @default(active)
+  createdAt DateTime      @default(now()) @map("created_at")
+
+  enrollments  StudentTermEnrollment[]
+  scores       Score[]
+  scoreChanges ScoreChangeLog[]
+
+  @@map("students")
+}
+
+model StudentTermEnrollment {
+  id        String @id @default(uuid())
+  termId    String @map("term_id")
+  studentId String @map("student_id")
+  classId   String @map("class_id")
+
+  term    AcademicTerm @relation(fields: [termId], references: [id])
+  student Student      @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  class   Class        @relation(fields: [classId], references: [id])
+
+  @@unique([termId, studentId])
+  @@index([classId, termId])
+  @@map("student_term_enrollments")
+}
+
+model Subject {
+  id               String          @id @default(uuid())
+  code             String          @unique
+  name             String
+  category         SubjectCategory @default(cultural)
+  defaultFullScore Decimal?        @map("default_full_score") @db.Decimal(5, 1)
+  isActive         Boolean         @default(true) @map("is_active")
+  sortOrder        Int             @default(0) @map("sort_order")
+
+  examSubjects        ExamSubject[]
+  scores              Score[]
+  teachingAssignments TeachingAssignment[]
+  scoreChanges        ScoreChangeLog[]
+
+  @@map("subjects")
+}
+
+model GradeDirector {
+  id      String @id @default(uuid())
+  gradeId String @map("grade_id")
+  userId  String @map("user_id")
+
+  grade Grade @relation(fields: [gradeId], references: [id], onDelete: Cascade)
+  user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([gradeId, userId])
+  @@map("grade_directors")
+}
+
+model TeachingAssignment {
+  id        String @id @default(uuid())
+  termId    String @map("term_id")
+  userId    String @map("user_id")
+  classId   String @map("class_id")
+  subjectId String @map("subject_id")
+
+  term    AcademicTerm @relation(fields: [termId], references: [id])
+  user    User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  class   Class        @relation(fields: [classId], references: [id], onDelete: Cascade)
+  subject Subject      @relation(fields: [subjectId], references: [id], onDelete: Cascade)
+
+  @@unique([termId, userId, classId, subjectId])
+  @@map("teaching_assignments")
+}
+
+model Exam {
+  id          String     @id @default(uuid())
+  termId      String     @map("term_id")
+  gradeId     String     @map("grade_id")
+  name        String
+  type        ExamType
+  heldAt      DateTime   @map("held_at") @db.Date
+  status      ExamStatus @default(active)
+  createdById String?    @map("created_by_id")
+  createdAt   DateTime   @default(now()) @map("created_at")
+
+  term         AcademicTerm @relation(fields: [termId], references: [id])
+  grade        Grade        @relation(fields: [gradeId], references: [id])
+  createdBy    User?        @relation("ExamCreatedBy", fields: [createdById], references: [id])
+  examSubjects ExamSubject[]
+  scores       Score[]
+  importBatches ImportBatch[]
+  scoreChanges ScoreChangeLog[]
+
+  @@unique([termId, gradeId, name])
+  @@index([termId, gradeId, heldAt])
+  @@map("exams")
+}
+
+model ExamSubject {
+  id              String  @id @default(uuid())
+  examId          String  @map("exam_id")
+  subjectId       String  @map("subject_id")
+  fullScore       Decimal @db.Decimal(5, 1) @map("full_score")
+  includedInTotal Boolean @default(true) @map("included_in_total")
+  sortOrder       Int     @default(0) @map("sort_order")
+
+  exam    Exam    @relation(fields: [examId], references: [id], onDelete: Cascade)
+  subject Subject @relation(fields: [subjectId], references: [id])
+
+  @@unique([examId, subjectId])
+  @@map("exam_subjects")
+}
+
+model Score {
+  id            String   @id @default(uuid())
+  examId        String   @map("exam_id")
+  studentId     String   @map("student_id")
+  subjectId     String   @map("subject_id")
+  classId       String   @map("class_id")
+  score         Decimal? @db.Decimal(6, 2)
+  isAbsent      Boolean  @default(false) @map("is_absent")
+  importBatchId String?  @map("import_batch_id")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+
+  exam        Exam          @relation(fields: [examId], references: [id], onDelete: Cascade)
+  student     Student       @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  subject     Subject       @relation(fields: [subjectId], references: [id])
+  class       Class         @relation(fields: [classId], references: [id])
+  importBatch ImportBatch?  @relation(fields: [importBatchId], references: [id], onDelete: SetNull)
+
+  @@unique([examId, studentId, subjectId])
+  @@index([examId, subjectId])
+  @@index([studentId, examId])
+  @@map("scores")
+}
+
+model ImportBatch {
+  id                String            @id @default(uuid())
+  examId            String?           @map("exam_id")
+  classId           String?           @map("class_id")
+  status            ImportBatchStatus @default(uploaded)
+  fileName          String            @map("file_name")
+  filePath          String            @map("file_path")
+  fileHash          String?           @map("file_hash")
+  fileSize          Int               @map("file_size")
+  sheetName         String?           @map("sheet_name")
+  headerFingerprint String?           @map("header_fingerprint")
+  mappingJson       Json?             @map("mapping_json")
+  parsedDataJson    Json?             @map("parsed_data_json")
+  validationJson    Json?             @map("validation_json")
+  statsJson         Json?             @map("stats_json")
+  examMetaJson      Json?             @map("exam_meta_json")
+  createdById       String            @map("created_by_id")
+  createdAt         DateTime          @default(now()) @map("created_at")
+  committedAt       DateTime?         @map("committed_at")
+
+  exam       Exam?            @relation(fields: [examId], references: [id], onDelete: SetNull)
+  class      Class?           @relation(fields: [classId], references: [id], onDelete: SetNull)
+  createdBy  User             @relation(fields: [createdById], references: [id])
+  scores     Score[]
+  changeLogs ScoreChangeLog[]
+
+  @@index([createdAt])
+  @@index([createdById])
+  @@index([classId])
+  @@map("import_batches")
+}
+
+model ScoreChangeLog {
+  id           String            @id @default(uuid())
+  batchId      String?           @map("batch_id")
+  examId       String            @map("exam_id")
+  studentId    String            @map("student_id")
+  subjectId    String            @map("subject_id")
+  oldScore     Decimal?          @db.Decimal(6, 2) @map("old_score")
+  oldAbsent    Boolean?          @map("old_absent")
+  newScore     Decimal?          @db.Decimal(6, 2) @map("new_score")
+  newAbsent    Boolean?          @map("new_absent")
+  action       ScoreChangeAction
+  operatedById String            @map("operated_by_id")
+  createdAt    DateTime          @default(now()) @map("created_at")
+
+  batch      ImportBatch? @relation(fields: [batchId], references: [id], onDelete: SetNull)
+  exam       Exam         @relation(fields: [examId], references: [id])
+  student    Student      @relation(fields: [studentId], references: [id])
+  subject    Subject      @relation(fields: [subjectId], references: [id])
+  operatedBy User         @relation(fields: [operatedById], references: [id])
+
+  @@index([examId])
+  @@map("score_change_logs")
+}
+
+model AuditLog {
+  id         String   @id @default(uuid())
+  actorId    String?  @map("actor_id")
+  action     String
+  entityType String   @map("entity_type")
+  entityId   String?  @map("entity_id")
+  detailJson Json?    @map("detail_json")
+  ip         String?
+  userAgent  String?  @map("user_agent")
+  requestId  String?  @map("request_id")
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  actor User? @relation(fields: [actorId], references: [id], onDelete: SetNull)
+
+  @@index([createdAt])
+  @@map("audit_logs")
+}
+
+model AppSetting {
+  key       String   @id
+  valueJson Json     @map("value_json")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@map("app_settings")
+}
