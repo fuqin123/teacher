@@ -1,0 +1,1067 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>成绩云析 · 学生成绩分析系统（明亮清新风格确认稿）</title>
+<script src="./echarts.min.js"></script>
+<style>
+/* ============ 设计令牌：明亮清新 ============ */
+:root {
+  --bg: #F5F7FB;               /* 画布：冷调浅灰蓝 */
+  --surface: #FFFFFF;          /* 卡片：纯白 */
+  --ink: #1E293B;              /* 主文字 */
+  --ink-2: #475569;            /* 次级文字 */
+  --ink-faint: #94A3B8;        /* 弱文字 */
+  --line: #E8EDF4;             /* 细边框 */
+  --primary: #3B7CFF;          /* 清新蓝 */
+  --primary-deep: #2B5FE3;
+  --primary-tint: #EBF2FF;
+  --mint: #10B981;
+  --mint-tint: #E7F7F0;
+  --amber: #F59E0B;
+  --amber-tint: #FEF4E2;
+  --rose: #F43F5E;
+  --rose-tint: #FDEBEE;
+  --violet: #8B5CF6;
+  --violet-tint: #F1EBFE;
+  --cyan: #06B6D4;
+  --shadow-card: 0 1px 2px rgba(30,41,59,.04), 0 6px 20px rgba(30,41,59,.05);
+  --radius: 14px;
+  --radius-sm: 10px;
+  --sans: "PingFang SC", "Microsoft YaHei", "Segoe UI", system-ui, -apple-system, sans-serif;
+  --mono: "SF Mono", "JetBrains Mono", Consolas, monospace;
+}
+* { margin:0; padding:0; box-sizing:border-box; }
+html { font-size:16px; }
+body {
+  font-family: var(--sans);
+  background: var(--bg);
+  color: var(--ink);
+  -webkit-font-smoothing: antialiased;
+  display: flex;
+  min-height: 100vh;
+}
+::selection { background: var(--primary-tint); }
+button { font-family: inherit; cursor: pointer; }
+
+/* ============ 侧边栏 ============ */
+.sidebar {
+  width: 236px; flex-shrink: 0;
+  background: var(--surface);
+  border-right: 1px solid var(--line);
+  display: flex; flex-direction: column;
+  position: sticky; top: 0; height: 100vh;
+}
+.brand {
+  display: flex; align-items: center; gap: 10px;
+  padding: 20px 18px 16px;
+}
+.brand .logo {
+  width: 36px; height: 36px; border-radius: 10px;
+  background: linear-gradient(135deg, #3B7CFF 0%, #6AA6FF 100%);
+  display: flex; align-items: center; justify-content: center;
+  color: #fff; flex-shrink: 0;
+}
+.brand .logo svg { width: 20px; height: 20px; }
+.brand .name { font-size: 17px; font-weight: 700; letter-spacing: .5px; }
+.brand .name em {
+  display: block; font-style: normal; font-weight: 500;
+  font-size: 11px; color: var(--ink-faint); letter-spacing: 1px; margin-top: 1px;
+}
+.nav { padding: 8px 12px; flex: 1; overflow-y: auto; }
+.nav .group {
+  font-size: 11px; color: var(--ink-faint); font-weight: 600;
+  letter-spacing: 1.5px; padding: 14px 10px 6px;
+}
+.nav-item {
+  display: flex; align-items: center; gap: 10px;
+  padding: 9px 10px; border-radius: var(--radius-sm);
+  color: var(--ink-2); font-size: 14px; font-weight: 500;
+  width: 100%; border: none; background: transparent; text-align: left;
+  transition: background .15s, color .15s;
+  margin-bottom: 2px;
+}
+.nav-item svg { width: 18px; height: 18px; flex-shrink: 0; }
+.nav-item:hover { background: #F1F5F9; color: var(--ink); }
+.nav-item.active {
+  background: var(--primary-tint);
+  color: var(--primary-deep); font-weight: 600;
+}
+.nav-item .tag {
+  margin-left: auto; font-size: 10px; font-weight: 600;
+  background: var(--mint-tint); color: #0A8F66;
+  padding: 2px 7px; border-radius: 20px;
+}
+.sidebar-footer {
+  margin: 12px; padding: 12px;
+  background: linear-gradient(135deg, #F5F9FF, #EEF4FF);
+  border: 1px solid #DCE8FF; border-radius: var(--radius);
+}
+.sidebar-footer .tip { font-size: 12px; color: var(--ink-2); line-height: 1.6; }
+.sidebar-footer .tip b { color: var(--primary-deep); }
+.user-card {
+  display: flex; align-items: center; gap: 10px;
+  padding: 14px 18px; border-top: 1px solid var(--line);
+}
+.avatar {
+  width: 36px; height: 36px; border-radius: 50%;
+  background: linear-gradient(135deg, #F59E0B, #F97316);
+  color: #fff; display: flex; align-items: center; justify-content: center;
+  font-weight: 700; font-size: 14px; flex-shrink: 0;
+}
+.user-card .meta { flex: 1; min-width: 0; }
+.user-card .meta .n { font-size: 14px; font-weight: 600; }
+.user-card .meta .r { font-size: 12px; color: var(--ink-faint); }
+
+/* ============ 主区域 ============ */
+.main { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.topbar {
+  position: sticky; top: 0; z-index: 20;
+  display: flex; align-items: center; gap: 14px;
+  padding: 14px 28px;
+  background: rgba(255,255,255,.82);
+  backdrop-filter: blur(10px);
+  border-bottom: 1px solid var(--line);
+}
+.topbar h1 { font-size: 17px; font-weight: 700; }
+.topbar .crumb { font-size: 12px; color: var(--ink-faint); margin-top: 2px; }
+.topbar .spacer { flex: 1; }
+.select-mock, .search-mock {
+  display: flex; align-items: center; gap: 8px;
+  border: 1px solid var(--line); background: var(--surface);
+  border-radius: var(--radius-sm); padding: 8px 12px;
+  font-size: 13px; color: var(--ink-2);
+}
+.search-mock svg, .select-mock svg { width: 15px; height: 15px; color: var(--ink-faint); }
+.search-mock input {
+  border: none; outline: none; background: transparent;
+  font-size: 13px; width: 160px; font-family: inherit; color: var(--ink);
+}
+.icon-btn {
+  width: 36px; height: 36px; border-radius: var(--radius-sm);
+  border: 1px solid var(--line); background: var(--surface);
+  display: flex; align-items: center; justify-content: center;
+  color: var(--ink-2); position: relative;
+}
+.icon-btn svg { width: 17px; height: 17px; }
+.icon-btn .dot {
+  position: absolute; top: 7px; right: 8px;
+  width: 7px; height: 7px; border-radius: 50%;
+  background: var(--rose); border: 1.5px solid #fff;
+}
+.content { padding: 24px 28px 48px; max-width: 1320px; width: 100%; margin: 0 auto; }
+
+/* ============ 通用组件 ============ */
+.card {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-card);
+}
+.card-head {
+  display: flex; align-items: center; gap: 10px;
+  padding: 16px 20px 0;
+}
+.card-head h3 { font-size: 15px; font-weight: 700; }
+.card-head .sub { font-size: 12px; color: var(--ink-faint); }
+.card-head .right { margin-left: auto; display: flex; gap: 8px; align-items: center; }
+.chip {
+  display: inline-flex; align-items: center; gap: 5px;
+  font-size: 12px; font-weight: 600;
+  padding: 4px 10px; border-radius: 20px;
+}
+.chip svg { width: 12px; height: 12px; }
+.chip.blue  { background: var(--primary-tint); color: var(--primary-deep); }
+.chip.mint  { background: var(--mint-tint); color: #0A8F66; }
+.chip.amber { background: var(--amber-tint); color: #B47509; }
+.chip.rose  { background: var(--rose-tint); color: #D9264A; }
+.chip.violet{ background: var(--violet-tint); color: #6D3FD4; }
+.chip.gray  { background: #F1F5F9; color: var(--ink-2); }
+.btn {
+  display: inline-flex; align-items: center; gap: 7px;
+  border-radius: var(--radius-sm); font-size: 13.5px; font-weight: 600;
+  padding: 9px 16px; border: 1px solid var(--line);
+  background: var(--surface); color: var(--ink-2);
+  transition: all .15s;
+}
+.btn svg { width: 15px; height: 15px; }
+.btn:hover { border-color: #C7D2E3; color: var(--ink); }
+.btn.primary {
+  background: var(--primary); border-color: var(--primary);
+  color: #fff; box-shadow: 0 4px 12px rgba(59,124,255,.28);
+}
+.btn.primary:hover { background: var(--primary-deep); }
+.btn.ghost { border-color: transparent; background: transparent; }
+.btn.lg { padding: 12px 22px; font-size: 14.5px; border-radius: 12px; }
+
+.page { display: none; }
+.page.active { display: block; animation: fadeIn .25s ease; }
+@keyframes fadeIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+.page-note {
+  display: flex; align-items: center; gap: 8px;
+  background: var(--primary-tint); border: 1px solid #D5E4FF;
+  color: var(--primary-deep); font-size: 12.5px;
+  border-radius: var(--radius-sm); padding: 10px 14px; margin-bottom: 18px;
+}
+.page-note svg { width: 15px; height: 15px; flex-shrink: 0; }
+
+/* KPI 卡 */
+.kpi-grid {
+  display: grid; grid-template-columns: repeat(4, 1fr);
+  gap: 16px; margin-bottom: 18px;
+}
+.kpi { padding: 18px 20px; position: relative; overflow: hidden; }
+.kpi::after {
+  content: ""; position: absolute; right: -24px; top: -24px;
+  width: 90px; height: 90px; border-radius: 50%;
+  background: radial-gradient(circle, var(--glow, rgba(59,124,255,.10)), transparent 70%);
+}
+.kpi .top { display: flex; align-items: center; justify-content: space-between; }
+.kpi .label { font-size: 13px; color: var(--ink-2); font-weight: 500; }
+.kpi .icon {
+  width: 40px; height: 40px; border-radius: 12px;
+  display: flex; align-items: center; justify-content: center;
+}
+.kpi .icon svg { width: 20px; height: 20px; }
+.kpi .icon.blue  { background: var(--primary-tint); color: var(--primary); }
+.kpi .icon.mint  { background: var(--mint-tint); color: var(--mint); }
+.kpi .icon.amber { background: var(--amber-tint); color: var(--amber); }
+.kpi .icon.violet{ background: var(--violet-tint); color: var(--violet); }
+.kpi .value { font-size: 30px; font-weight: 800; margin-top: 10px; letter-spacing: -.5px; }
+.kpi .value small { font-size: 14px; font-weight: 600; color: var(--ink-faint); margin-left: 2px; }
+.kpi .foot { display: flex; align-items: center; gap: 8px; margin-top: 8px; }
+.kpi .trend {
+  display: inline-flex; align-items: center; gap: 3px;
+  font-size: 12px; font-weight: 700;
+  padding: 2px 8px; border-radius: 20px;
+}
+.kpi .trend svg { width: 12px; height: 12px; }
+.kpi .trend.up   { background: var(--mint-tint); color: #0A8F66; }
+.kpi .trend.down { background: var(--rose-tint); color: #D9264A; }
+.kpi .foot .hint { font-size: 12px; color: var(--ink-faint); }
+
+/* 布局栅格 */
+.grid-2 { display: grid; grid-template-columns: 1.2fr 1fr; gap: 16px; margin-bottom: 18px; }
+.grid-2-even { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 18px; }
+.chart-box { height: 320px; padding: 8px 12px 12px; }
+.chart-box.tall { height: 360px; }
+
+/* 表格 */
+.table-wrap { padding: 8px 20px 16px; overflow-x: auto; }
+table { width: 100%; border-collapse: collapse; font-size: 13.5px; }
+thead th {
+  text-align: left; font-size: 12px; font-weight: 600;
+  color: var(--ink-faint); letter-spacing: .3px;
+  padding: 10px 12px; border-bottom: 1px solid var(--line);
+  white-space: nowrap;
+}
+thead th.num, tbody td.num { text-align: right; }
+tbody td { padding: 11px 12px; border-bottom: 1px solid #F1F5F9; color: var(--ink-2); white-space: nowrap; }
+tbody tr:last-child td { border-bottom: none; }
+tbody tr:hover { background: #F8FAFD; }
+td .stu { display: flex; align-items: center; gap: 10px; color: var(--ink); font-weight: 600; }
+td .stu .ava {
+  width: 28px; height: 28px; border-radius: 50%; flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 12px; font-weight: 700; color: #fff;
+}
+.rank-badge {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 26px; height: 26px; border-radius: 8px;
+  font-size: 12.5px; font-weight: 700;
+  background: #F1F5F9; color: var(--ink-2);
+}
+.rank-badge.g1 { background: linear-gradient(135deg,#FEF3C7,#FDE68A); color: #92400E; }
+.rank-badge.g2 { background: linear-gradient(135deg,#E2E8F0,#CBD5E1); color: #475569; }
+.rank-badge.g3 { background: linear-gradient(135deg,#FFEDD5,#FED7AA); color: #9A3412; }
+.delta { display: inline-flex; align-items: center; gap: 2px; font-weight: 700; font-size: 12.5px; }
+.delta svg { width: 12px; height: 12px; }
+.delta.up { color: #0A8F66; }
+.delta.down { color: #D9264A; }
+.delta.flat { color: var(--ink-faint); }
+
+/* 导入向导 */
+.stepper { display: flex; align-items: center; padding: 20px 24px 6px; }
+.step { display: flex; align-items: center; gap: 10px; }
+.step .dot {
+  width: 30px; height: 30px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 13px; font-weight: 700;
+  background: #F1F5F9; color: var(--ink-faint);
+  border: 2px solid transparent;
+}
+.step .dot svg { width: 15px; height: 15px; }
+.step.done .dot { background: var(--mint-tint); color: #0A8F66; }
+.step.current .dot { background: var(--primary); color: #fff; box-shadow: 0 0 0 5px var(--primary-tint); }
+.step .txt { font-size: 13.5px; font-weight: 600; color: var(--ink-faint); }
+.step.done .txt, .step.current .txt { color: var(--ink); }
+.step .txt small { display: block; font-weight: 500; font-size: 11.5px; margin-top: 1px; }
+.step-line { flex: 1; height: 2px; background: var(--line); margin: 0 14px; border-radius: 2px; position: relative; min-width: 40px; }
+.step-line.fill { background: var(--mint); }
+.dropzone {
+  margin: 18px 24px 8px;
+  border: 2px dashed #C3D6F5; border-radius: var(--radius);
+  background: linear-gradient(180deg, #F8FAFF, #F3F7FF);
+  padding: 36px 20px; text-align: center;
+}
+.dropzone .dz-icon {
+  width: 56px; height: 56px; border-radius: 16px; margin: 0 auto 14px;
+  background: var(--primary-tint); color: var(--primary);
+  display: flex; align-items: center; justify-content: center;
+}
+.dropzone .dz-icon svg { width: 26px; height: 26px; }
+.dropzone h4 { font-size: 15px; font-weight: 700; }
+.dropzone p { font-size: 12.5px; color: var(--ink-faint); margin-top: 6px; line-height: 1.7; }
+.file-chip {
+  display: flex; align-items: center; gap: 12px;
+  margin: 14px 24px; padding: 12px 16px;
+  border: 1px solid var(--line); border-radius: var(--radius-sm);
+  background: #F8FAFD;
+}
+.file-chip .fc-icon {
+  width: 38px; height: 38px; border-radius: 10px;
+  background: var(--mint-tint); color: #0A8F66;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 10px; font-weight: 800;
+}
+.file-chip .fc-meta { flex: 1; }
+.file-chip .fc-meta .n { font-size: 13.5px; font-weight: 600; color: var(--ink); }
+.file-chip .fc-meta .s { font-size: 12px; color: var(--ink-faint); margin-top: 2px; }
+.check-list { padding: 14px 24px 8px; }
+.check-item { display: flex; align-items: flex-start; gap: 10px; padding: 8px 0; }
+.check-item .ci-icon { margin-top: 1px; flex-shrink: 0; }
+.check-item .ci-icon svg { width: 16px; height: 16px; }
+.check-item .ci-body { flex: 1; }
+.check-item .ci-body .t { font-size: 13.5px; font-weight: 600; color: var(--ink); }
+.check-item .ci-body .d { font-size: 12.5px; color: var(--ink-faint); margin-top: 2px; line-height: 1.6; }
+.err-row td { background: var(--rose-tint); }
+.ai-badge {
+  display: inline-flex; align-items: center; gap: 5px;
+  font-size: 11px; font-weight: 700;
+  background: linear-gradient(135deg, var(--violet), #A78BFA);
+  color: #fff; padding: 3px 9px; border-radius: 20px;
+}
+.ai-badge svg { width: 11px; height: 11px; }
+.conf { font-family: var(--mono); font-size: 12px; font-weight: 600; }
+.conf.hi { color: #0A8F66; } .conf.mid { color: #B47509; }
+.field-tag {
+  display: inline-block; font-size: 12px; font-weight: 600;
+  background: var(--primary-tint); color: var(--primary-deep);
+  padding: 3px 9px; border-radius: 6px;
+}
+.card-foot { display: flex; justify-content: flex-end; gap: 10px; padding: 16px 24px; border-top: 1px solid var(--line); }
+
+/* 学生档案 */
+.profile-head { display: flex; align-items: center; gap: 18px; padding: 22px 24px; }
+.profile-head .big-ava {
+  width: 64px; height: 64px; border-radius: 18px;
+  background: linear-gradient(135deg, #8B5CF6, #6366F1);
+  color: #fff; font-size: 24px; font-weight: 800;
+  display: flex; align-items: center; justify-content: center;
+}
+.profile-head .info h2 { font-size: 19px; font-weight: 800; }
+.profile-head .info .meta { font-size: 13px; color: var(--ink-faint); margin-top: 4px; display: flex; gap: 14px; flex-wrap: wrap; }
+.profile-head .stats { margin-left: auto; display: flex; gap: 28px; }
+.profile-head .stat { text-align: center; }
+.profile-head .stat .v { font-size: 22px; font-weight: 800; }
+.profile-head .stat .v .up { color: #0A8F66; }
+.profile-head .stat .k { font-size: 12px; color: var(--ink-faint); margin-top: 2px; }
+.subject-pills { display: flex; flex-wrap: wrap; gap: 10px; padding: 0 24px 20px; }
+.sub-pill {
+  display: flex; align-items: center; gap: 8px;
+  border: 1px solid var(--line); border-radius: 30px;
+  padding: 7px 14px; font-size: 13px; background: var(--surface);
+}
+.sub-pill b { font-size: 14px; }
+.sub-pill .tag { font-size: 11px; font-weight: 700; padding: 2px 8px; border-radius: 20px; }
+.sub-pill .tag.weak { background: var(--rose-tint); color: #D9264A; }
+.sub-pill .tag.strong { background: var(--mint-tint); color: #0A8F66; }
+
+/* 年级热力表 */
+.heat-cell { font-weight: 700; font-size: 13px; padding: 9px 10px; border-radius: 8px; text-align: center !important; }
+.h-good { background: var(--mint-tint); color: #0A8F66; }
+.h-bad  { background: var(--rose-tint); color: #D9264A; }
+.h-mid  { background: #F1F5F9; color: var(--ink-2); }
+
+/* 设置占位 */
+.setting-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+.setting-row { display: flex; align-items: center; gap: 12px; padding: 14px 20px; border-bottom: 1px solid #F1F5F9; }
+.setting-row:last-child { border-bottom: none; }
+.setting-row .s-icon {
+  width: 36px; height: 36px; border-radius: 10px;
+  display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+}
+.setting-row .s-icon svg { width: 17px; height: 17px; }
+.setting-row .s-body { flex: 1; }
+.setting-row .s-body .t { font-size: 13.5px; font-weight: 600; color: var(--ink); }
+.setting-row .s-body .d { font-size: 12px; color: var(--ink-faint); margin-top: 2px; }
+.switch { width: 38px; height: 22px; border-radius: 20px; background: var(--primary); position: relative; flex-shrink: 0; }
+.switch::after { content:""; position: absolute; top: 2px; right: 2px; width: 18px; height: 18px; border-radius: 50%; background: #fff; box-shadow: 0 1px 3px rgba(0,0,0,.2); }
+.switch.off { background: #CBD5E1; }
+.switch.off::after { right: auto; left: 2px; }
+
+@media (max-width: 1100px) {
+  .kpi-grid { grid-template-columns: repeat(2, 1fr); }
+  .grid-2, .grid-2-even, .setting-grid { grid-template-columns: 1fr; }
+}
+</style>
+</head>
+<body>
+
+<!-- ================= 侧边栏 ================= -->
+<aside class="sidebar">
+  <div class="brand">
+    <div class="logo">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><rect x="7" y="12" width="3" height="6" rx="1" fill="currentColor" stroke="none"/><rect x="12" y="8" width="3" height="10" rx="1" fill="currentColor" stroke="none"/><rect x="17" y="4" width="3" height="14" rx="1" fill="currentColor" stroke="none"/></svg>
+    </div>
+    <div class="name">成绩云析<em>SCORELENS</em></div>
+  </div>
+  <nav class="nav">
+    <div class="group">分析</div>
+    <button class="nav-item active" data-page="dashboard">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="9" rx="1.5"/><rect x="14" y="3" width="7" height="5" rx="1.5"/><rect x="14" y="12" width="7" height="9" rx="1.5"/><rect x="3" y="16" width="7" height="5" rx="1.5"/></svg>
+      班级看板
+    </button>
+    <button class="nav-item" data-page="grade">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+      年级对比
+      <span class="tag">主任</span>
+    </button>
+    <button class="nav-item" data-page="student">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+      学生档案
+    </button>
+    <div class="group">数据</div>
+    <button class="nav-item" data-page="import">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="M7 10l5 5 5-5"/><path d="M12 15V3"/></svg>
+      成绩导入
+    </button>
+    <button class="nav-item" data-page="history">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 3 0 1 0 18 0"/><path d="M3 12a9 3 0 0 1 18 0a9 3 0 0 1 -18 0"/><path d="M12 3a9 3 0 0 0 -9 9v6a9 3 0 0 0 18 0v-6a9 3 0 0 0 -9 -9z"/></svg>
+      导入历史
+    </button>
+    <div class="group">系统</div>
+    <button class="nav-item" data-page="settings">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+      系统设置
+    </button>
+  </nav>
+  <div class="sidebar-footer">
+    <div class="tip">💡 <b>AI 智能映射</b> 已开启：上传成绩表格后自动识别表头，无需手动配置列。</div>
+  </div>
+  <div class="user-card">
+    <div class="avatar">王</div>
+    <div class="meta">
+      <div class="n">王老师</div>
+      <div class="r">班主任 · 高二（3）班</div>
+    </div>
+    <svg style="width:16px;height:16px;color:var(--ink-faint)" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+  </div>
+</aside>
+
+<!-- ================= 主区域 ================= -->
+<main class="main">
+  <header class="topbar">
+    <div>
+      <h1 id="pageTitle">班级看板</h1>
+      <div class="crumb" id="pageCrumb">高二（3）班 · 2026-2027 学年 · 期中考试</div>
+    </div>
+    <div class="spacer"></div>
+    <div class="select-mock">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+      2026 秋季学期 · 期中考试
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polyline points="6 9 12 15 18 9"/></svg>
+    </div>
+    <div class="search-mock">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+      <input placeholder="搜索学生姓名 / 学号…">
+    </div>
+    <button class="icon-btn">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+      <span class="dot"></span>
+    </button>
+  </header>
+
+  <div class="content">
+
+    <!-- ==================== 页面 1：班级看板 ==================== -->
+    <section class="page active" id="page-dashboard">
+      <div class="page-note">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+        风格确认稿 · 明亮清新风格：白卡片 + 清新蓝主色 + 柔和多彩图表，参考现代 SaaS 数据看板设计
+      </div>
+
+      <div class="kpi-grid">
+        <div class="card kpi" style="--glow: rgba(59,124,255,.12)">
+          <div class="top">
+            <span class="label">班级总分平均分</span>
+            <div class="icon blue"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="12" y1="20" x2="12" y2="10"/><line x1="18" y1="20" x2="18" y2="4"/><line x1="6" y1="20" x2="6" y2="16"/></svg></div>
+          </div>
+          <div class="value">512.4<small>/ 750</small></div>
+          <div class="foot">
+            <span class="trend up"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polyline points="18 15 12 9 6 15"/></svg>较上次 +6.2</span>
+            <span class="hint">vs 年级均值 498.7</span>
+          </div>
+        </div>
+        <div class="card kpi" style="--glow: rgba(16,185,129,.12)">
+          <div class="top">
+            <span class="label">及格率</span>
+            <div class="icon mint"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg></div>
+          </div>
+          <div class="value">92.3<small>%</small></div>
+          <div class="foot">
+            <span class="trend up"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polyline points="18 15 12 9 6 15"/></svg>+1.8%</span>
+            <span class="hint">年级排名 3 / 12 班</span>
+          </div>
+        </div>
+        <div class="card kpi" style="--glow: rgba(245,158,11,.12)">
+          <div class="top">
+            <span class="label">优秀率</span>
+            <div class="icon amber"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg></div>
+          </div>
+          <div class="value">38.5<small>%</small></div>
+          <div class="foot">
+            <span class="trend up"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polyline points="18 15 12 9 6 15"/></svg>+4.1%</span>
+            <span class="hint">阈值 ≥85% 满分</span>
+          </div>
+        </div>
+        <div class="card kpi" style="--glow: rgba(139,92,246,.12)">
+          <div class="top">
+            <span class="label">参考人数</span>
+            <div class="icon violet"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg></div>
+          </div>
+          <div class="value">45<small>人</small></div>
+          <div class="foot">
+            <span class="trend down"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polyline points="6 9 12 15 18 9"/></svg>缺考 2 人</span>
+            <span class="hint">已按口径剔除</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="grid-2">
+        <div class="card">
+          <div class="card-head">
+            <h3>各科平均分对比</h3>
+            <span class="chip gray">满分 150</span>
+            <div class="right"><button class="btn ghost">导出图表</button></div>
+          </div>
+          <div class="chart-box" id="chartSubject"></div>
+        </div>
+        <div class="card">
+          <div class="card-head">
+            <h3>历次考试总分趋势</h3>
+            <span class="chip mint">持续上升</span>
+          </div>
+          <div class="chart-box" id="chartTrend"></div>
+        </div>
+      </div>
+
+      <div class="card" style="margin-bottom:18px">
+        <div class="card-head">
+          <h3>学生排名</h3>
+          <span class="chip gray">按总分排序</span>
+          <div class="right">
+            <div class="select-mock" style="padding:6px 10px">全部科目</div>
+            <button class="btn">导出 Excel</button>
+          </div>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>名次</th><th>学生</th><th class="num">总分</th>
+                <th class="num">语文</th><th class="num">数学</th><th class="num">英语</th>
+                <th class="num">物理</th><th class="num">化学</th><th>名次变化</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><span class="rank-badge g1">1</span></td>
+                <td><span class="stu"><span class="ava" style="background:linear-gradient(135deg,#8B5CF6,#6366F1)">陈</span>陈雨桐</span></td>
+                <td class="num" style="font-weight:700;color:var(--ink)">682</td>
+                <td class="num">126</td><td class="num">145</td><td class="num">138</td><td class="num">92</td><td class="num">81</td>
+                <td><span class="delta up"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polyline points="18 15 12 9 6 15"/></svg>↑ 3</span></td>
+              </tr>
+              <tr>
+                <td><span class="rank-badge g2">2</span></td>
+                <td><span class="stu"><span class="ava" style="background:linear-gradient(135deg,#10B981,#059669)">李</span>李泽宇</span></td>
+                <td class="num" style="font-weight:700;color:var(--ink)">675</td>
+                <td class="num">121</td><td class="num">142</td><td class="num">135</td><td class="num">95</td><td class="num">82</td>
+                <td><span class="delta down"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polyline points="6 9 12 15 18 9"/></svg>↓ 1</span></td>
+              </tr>
+              <tr>
+                <td><span class="rank-badge g3">3</span></td>
+                <td><span class="stu"><span class="ava" style="background:linear-gradient(135deg,#F59E0B,#F97316)">周</span>周思涵</span></td>
+                <td class="num" style="font-weight:700;color:var(--ink)">671</td>
+                <td class="num">130</td><td class="num">138</td><td class="num">140</td><td class="num">88</td><td class="num">75</td>
+                <td><span class="delta flat">—</span></td>
+              </tr>
+              <tr>
+                <td><span class="rank-badge">4</span></td>
+                <td><span class="stu"><span class="ava" style="background:linear-gradient(135deg,#F43F5E,#FB7185)">吴</span>吴一凡</span></td>
+                <td class="num" style="font-weight:700;color:var(--ink)">664</td>
+                <td class="num">118</td><td class="num">136</td><td class="num">132</td><td class="num">93</td><td class="num">85</td>
+                <td><span class="delta up"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polyline points="18 15 12 9 6 15"/></svg>↑ 5</span></td>
+              </tr>
+              <tr>
+                <td><span class="rank-badge">5</span></td>
+                <td><span class="stu"><span class="ava" style="background:linear-gradient(135deg,#06B6D4,#0891B2)">郑</span>郑皓文</span></td>
+                <td class="num" style="font-weight:700;color:var(--ink)">658</td>
+                <td class="num">115</td><td class="num">141</td><td class="num">128</td><td class="num">90</td><td class="num">84</td>
+                <td><span class="delta down"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polyline points="6 9 12 15 18 9"/></svg>↓ 2</span></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="grid-2-even">
+        <div class="card">
+          <div class="card-head">
+            <h3>数学分数段分布</h3>
+            <span class="chip blue">10 分一段</span>
+          </div>
+          <div class="chart-box" id="chartDist"></div>
+        </div>
+        <div class="card">
+          <div class="card-head">
+            <h3>临界生提醒</h3>
+            <span class="chip amber">±5 分内</span>
+            <div class="right"><button class="btn ghost">查看全部 9 人</button></div>
+          </div>
+          <div class="table-wrap" style="padding-top:4px">
+            <table>
+              <thead><tr><th>学生</th><th>目标线</th><th class="num">当前分</th><th class="num">差距</th></tr></thead>
+              <tbody>
+                <tr><td><b style="color:var(--ink)">刘欣怡</b></td><td><span class="chip mint">优秀线 127.5</span></td><td class="num">124</td><td class="num" style="color:#0A8F66;font-weight:700">-3.5</td></tr>
+                <tr><td><b style="color:var(--ink)">张梓豪</b></td><td><span class="chip mint">优秀线 127.5</span></td><td class="num">123</td><td class="num" style="color:#0A8F66;font-weight:700">-4.5</td></tr>
+                <tr><td><b style="color:var(--ink)">黄雅琪</b></td><td><span class="chip amber">及格线 90</span></td><td class="num">87</td><td class="num" style="color:#D9264A;font-weight:700">-3</td></tr>
+                <tr><td><b style="color:var(--ink)">徐子墨</b></td><td><span class="chip amber">及格线 90</span></td><td class="num">86</td><td class="num" style="color:#D9264A;font-weight:700">-4</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ==================== 页面 2：成绩导入 ==================== -->
+    <section class="page" id="page-import">
+      <div class="card" style="margin-bottom:18px">
+        <div class="stepper">
+          <div class="step done">
+            <div class="dot"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"><polyline points="20 6 9 17 4 12"/></svg></div>
+            <div class="txt">上传表格<small>已解析 128 行</small></div>
+          </div>
+          <div class="step-line fill"></div>
+          <div class="step current">
+            <div class="dot">3</div>
+            <div class="txt">确认映射<small>AI 已给出建议</small></div>
+          </div>
+          <div class="step-line"></div>
+          <div class="step">
+            <div class="dot">4</div>
+            <div class="txt">数据校验<small>自动检查</small></div>
+          </div>
+          <div class="step-line"></div>
+          <div class="step">
+            <div class="dot">5</div>
+            <div class="txt">完成入库<small>事务写入</small></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="grid-2-even" style="grid-template-columns:1fr 1.4fr">
+        <div class="card">
+          <div class="card-head"><h3>① 上传成绩表格</h3><span class="chip mint">已上传</span></div>
+          <div class="file-chip">
+            <div class="fc-icon">XLSX</div>
+            <div class="fc-meta">
+              <div class="n">高二3班_期中考试成绩表.xlsx</div>
+              <div class="s">126 KB · 128 行 × 9 列 · 解析成功</div>
+            </div>
+            <button class="btn ghost">更换</button>
+          </div>
+          <div class="dropzone" style="margin-top:4px">
+            <div class="dz-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg></div>
+            <h4>拖拽文件到此处，或点击上传</h4>
+            <p>支持 .xlsx / .xls / .csv（兼容 WPS 导出）<br>单文件 ≤ 10MB · 建议使用 <a href="#" style="color:var(--primary);font-weight:600">标准模板</a></p>
+          </div>
+          <div class="card-foot">
+            <button class="btn primary">下一步：确认映射</button>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-head">
+            <h3>② AI 表头映射建议</h3>
+            <span class="ai-badge"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2l2.4 7.2L22 12l-7.6 2.8L12 22l-2.4-7.2L2 12l7.6-2.8z"/></svg>DeepSeek 自动识别</span>
+            <div class="right"><button class="btn ghost">全部手动选择</button></div>
+          </div>
+          <div class="table-wrap" style="padding-top:6px">
+            <table>
+              <thead><tr><th>源文件列</th><th>样例值</th><th>映射到标准字段</th><th>置信度</th></tr></thead>
+              <tbody>
+                <tr><td style="font-weight:600;color:var(--ink)">姓名</td><td>陈雨桐</td><td><span class="field-tag">学生姓名</span></td><td><span class="conf hi">98%</span></td></tr>
+                <tr><td style="font-weight:600;color:var(--ink)">学籍号</td><td>2024030115</td><td><span class="field-tag">学号</span></td><td><span class="conf hi">96%</span></td></tr>
+                <tr><td style="font-weight:600;color:var(--ink)">语文得分</td><td>126</td><td><span class="field-tag">语文成绩</span></td><td><span class="conf hi">99%</span></td></tr>
+                <tr><td style="font-weight:600;color:var(--ink)">Math</td><td>145</td><td><span class="field-tag">数学成绩</span></td><td><span class="conf mid">82%</span></td></tr>
+                <tr><td style="font-weight:600;color:var(--ink)">英语</td><td>138</td><td><span class="field-tag">英语成绩</span></td><td><span class="conf hi">97%</span></td></tr>
+                <tr><td style="font-weight:600;color:var(--ink)">备注</td><td>请假</td><td><span class="chip gray">跳过此列</span></td><td><span class="conf hi">95%</span></td></tr>
+              </tbody>
+            </table>
+          </div>
+          <div class="card-foot">
+            <span style="margin-right:auto;font-size:12.5px;color:var(--ink-faint);align-self:center">AI 仅识别结构，全量数据由程序确定性处理</span>
+            <button class="btn">重新识别</button>
+            <button class="btn primary">确认映射</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-head">
+          <h3>③ 数据校验结果</h3>
+          <span class="chip rose">2 行异常</span>
+          <div class="right"><button class="btn primary">修正后重新校验</button></div>
+        </div>
+        <div class="check-list">
+          <div class="check-item">
+            <span class="ci-icon" style="color:#0A8F66"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg></span>
+            <div class="ci-body"><div class="t">行数比对通过</div><div class="d">原表 128 行，解析后 128 行，无丢失</div></div>
+          </div>
+          <div class="check-item">
+            <span class="ci-icon" style="color:#0A8F66"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg></span>
+            <div class="ci-body"><div class="t">学号唯一性通过</div><div class="d">126 个学号均已在系统中建档，无重复</div></div>
+          </div>
+          <div class="check-item">
+            <span class="ci-icon" style="color:#D9264A"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg></span>
+            <div class="ci-body"><div class="t">发现 2 行分数超出范围</div><div class="d">物理满分 100，检测到超出范围的数值，请修正或标记缺考</div></div>
+          </div>
+        </div>
+        <div class="table-wrap" style="padding-top:0">
+          <table>
+            <thead><tr><th>行号</th><th>学生</th><th>科目</th><th class="num">得分</th><th>问题</th><th>操作</th></tr></thead>
+            <tbody>
+              <tr class="err-row">
+                <td>#45</td><td style="font-weight:600;color:var(--ink)">黄雅琪</td><td><span class="field-tag">物理</span></td>
+                <td class="num" style="color:#D9264A;font-weight:700">108</td>
+                <td>超出满分 100</td>
+                <td><button class="btn ghost" style="color:var(--primary)">修改</button> <button class="btn ghost" style="color:var(--primary)">标记缺考</button></td>
+              </tr>
+              <tr class="err-row">
+                <td>#102</td><td style="font-weight:600;color:var(--ink)">马嘉树</td><td><span class="field-tag">化学</span></td>
+                <td class="num" style="color:#D9264A;font-weight:700">-5</td>
+                <td>分数不能为负</td>
+                <td><button class="btn ghost" style="color:var(--primary)">修改</button> <button class="btn ghost" style="color:var(--primary)">跳过该行</button></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="card-foot">
+          <span style="margin-right:auto;font-size:12.5px;color:var(--ink-faint);align-self:center">入库后 24 小时内可整体撤销</span>
+          <button class="btn">保存草稿</button>
+          <button class="btn primary" disabled style="opacity:.5">全部通过后入库</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- ==================== 页面 3：学生档案 ==================== -->
+    <section class="page" id="page-student">
+      <div class="card" style="margin-bottom:18px">
+        <div class="profile-head">
+          <div class="big-ava">陈</div>
+          <div class="info">
+            <h2>陈雨桐</h2>
+            <div class="meta">
+              <span>学号 2024030115</span><span>高二（3）班</span><span>班主任：王老师</span>
+            </div>
+          </div>
+          <div class="stats">
+            <div class="stat"><div class="v">682</div><div class="k">本次总分</div></div>
+            <div class="stat"><div class="v"><span class="up">↑ 3</span></div><div class="k">班级名次变化</div></div>
+            <div class="stat"><div class="v">第 5 / 412</div><div class="k">年级名次</div></div>
+            <div class="stat"><div class="v">+14</div><div class="k">较上次总分</div></div>
+          </div>
+        </div>
+        <div class="subject-pills">
+          <div class="sub-pill">语文 <b>126</b><span class="tag strong">均衡</span></div>
+          <div class="sub-pill">数学 <b>145</b><span class="tag strong">优势科</span></div>
+          <div class="sub-pill">英语 <b>138</b><span class="tag strong">均衡</span></div>
+          <div class="sub-pill">物理 <b>92</b><span class="tag weak">偏科 −1.8σ</span></div>
+          <div class="sub-pill">化学 <b>81</b><span class="tag strong">均衡</span></div>
+        </div>
+      </div>
+
+      <div class="grid-2-even">
+        <div class="card">
+          <div class="card-head"><h3>多科成绩画像</h3><span class="chip violet">标准分视角</span></div>
+          <div class="chart-box" id="chartRadar"></div>
+        </div>
+        <div class="card">
+          <div class="card-head"><h3>历次考试名次变化</h3><span class="chip mint">稳中有升</span></div>
+          <div class="chart-box" id="chartRank"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ==================== 页面 4：年级对比 ==================== -->
+    <section class="page" id="page-grade">
+      <div class="page-note">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+        年级主任视图：当前登录角色为「班主任」，此页面示意年级主任角色下的数据范围与呈现方式
+      </div>
+      <div class="card" style="margin-bottom:18px">
+        <div class="card-head">
+          <h3>各班总分平均分对比（期中考试）</h3>
+          <span class="chip blue">12 个班</span>
+        </div>
+        <div class="chart-box tall" id="chartClassCompare"></div>
+      </div>
+      <div class="card">
+        <div class="card-head">
+          <h3>学科贡献热力表</h3>
+          <span class="sub">各班单科相对年级均值的偏离 · 绿 = 强科 · 红 = 弱科</span>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>班级</th><th class="num">语文</th><th class="num">数学</th><th class="num">英语</th><th class="num">物理</th><th class="num">化学</th></tr></thead>
+            <tbody>
+              <tr><td style="font-weight:700;color:var(--ink)">高二（1）班</td><td class="heat-cell h-good">+4.2</td><td class="heat-cell h-good">+6.8</td><td class="heat-cell h-mid">+0.5</td><td class="heat-cell h-bad">−3.1</td><td class="heat-cell h-mid">+1.2</td></tr>
+              <tr><td style="font-weight:700;color:var(--ink)">高二（2）班</td><td class="heat-cell h-mid">−0.8</td><td class="heat-cell h-good">+3.5</td><td class="heat-cell h-good">+5.2</td><td class="heat-cell h-good">+4.4</td><td class="heat-cell h-bad">−2.6</td></tr>
+              <tr><td style="font-weight:700;color:var(--ink)">高二（3）班</td><td class="heat-cell h-good">+3.6</td><td class="heat-cell h-good">+8.1</td><td class="heat-cell h-good">+4.9</td><td class="heat-cell h-bad">−1.8</td><td class="heat-cell h-mid">+0.3</td></tr>
+              <tr><td style="font-weight:700;color:var(--ink)">高二（4）班</td><td class="heat-cell h-bad">−4.5</td><td class="heat-cell h-mid">−1.2</td><td class="heat-cell h-bad">−3.8</td><td class="heat-cell h-mid">+0.6</td><td class="heat-cell h-bad">−4.1</td></tr>
+              <tr><td style="font-weight:700;color:var(--ink)">高二（5）班</td><td class="heat-cell h-mid">+1.1</td><td class="heat-cell h-bad">−5.3</td><td class="heat-cell h-mid">−2.2</td><td class="heat-cell h-good">+2.9</td><td class="heat-cell h-good">+3.7</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- ==================== 页面 5：导入历史 ==================== -->
+    <section class="page" id="page-history">
+      <div class="card">
+        <div class="card-head">
+          <h3>导入记录</h3>
+          <span class="chip gray">最近 5 条</span>
+          <div class="right"><button class="btn">查看全部</button></div>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>文件名</th><th>考试</th><th>操作人</th><th>时间</th><th>结果</th><th>操作</th></tr></thead>
+            <tbody>
+              <tr>
+                <td style="font-weight:600;color:var(--ink)">高二3班_期中考试成绩表.xlsx</td><td>2026 秋季期中考试</td><td>王老师</td><td>11-20 14:22</td>
+                <td><span class="chip mint">成功 128 条</span></td>
+                <td><button class="btn ghost" style="color:var(--primary)">查看映射快照</button> <button class="btn ghost" style="color:var(--rose)">撤销导入</button></td>
+              </tr>
+              <tr>
+                <td style="font-weight:600;color:var(--ink)">高二3班_第一次月考成绩.csv</td><td>2026 秋季第一次月考</td><td>王老师</td><td>10-08 09:15</td>
+                <td><span class="chip mint">成功 126 条</span></td>
+                <td><button class="btn ghost" style="color:var(--primary)">查看映射快照</button></td>
+              </tr>
+              <tr>
+                <td style="font-weight:600;color:var(--ink)">数学成绩_期中_WPS导出.xls</td><td>2026 秋季期中考试</td><td>张老师</td><td>11-19 16:40</td>
+                <td><span class="chip rose">校验失败 3 行</span></td>
+                <td><button class="btn ghost" style="color:var(--primary)">查看异常明细</button></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- ==================== 页面 6：系统设置 ==================== -->
+    <section class="page" id="page-settings">
+      <div class="setting-grid">
+        <div class="card">
+          <div class="card-head"><h3>统计分析</h3></div>
+          <div class="setting-row">
+            <div class="s-icon" style="background:var(--primary-tint);color:var(--primary)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="12" y1="20" x2="12" y2="10"/><line x1="18" y1="20" x2="18" y2="4"/><line x1="6" y1="20" x2="6" y2="16"/></svg></div>
+            <div class="s-body"><div class="t">优秀阈值：满分 × 85%</div><div class="d">全局默认，可按考试覆盖</div></div>
+            <div class="switch"></div>
+          </div>
+          <div class="setting-row">
+            <div class="s-icon" style="background:var(--violet-tint);color:var(--violet)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg></div>
+            <div class="s-body"><div class="t">偏科提示：标准分 &lt; −1.5</div><div class="d">单科相对班级均值偏离触发提醒</div></div>
+            <div class="switch"></div>
+          </div>
+          <div class="setting-row">
+            <div class="s-icon" style="background:var(--amber-tint);color:var(--amber)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2l2.4 7.2L22 12l-7.6 2.8L12 22l-2.4-7.2L2 12l7.6-2.8z"/></svg></div>
+            <div class="s-body"><div class="t">AI 表头自动映射</div><div class="d">关闭后导入时全部手动选列</div></div>
+            <div class="switch"></div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-head"><h3>安全与备份</h3></div>
+          <div class="setting-row">
+            <div class="s-icon" style="background:var(--mint-tint);color:var(--mint)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg></div>
+            <div class="s-body"><div class="t">每日自动备份（pg_dump）</div><div class="d">保留最近 30 天 · 上次成功 11-20 03:00</div></div>
+            <div class="switch"></div>
+          </div>
+          <div class="setting-row">
+            <div class="s-icon" style="background:var(--rose-tint);color:var(--rose)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg></div>
+            <div class="s-body"><div class="t">登录失败 5 次锁定账户</div><div class="d">公网部署防护策略，30 分钟后自动解锁</div></div>
+            <div class="switch off"></div>
+          </div>
+          <div class="setting-row">
+            <div class="s-icon" style="background:var(--primary-tint);color:var(--primary)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg></div>
+            <div class="s-body"><div class="t">导入审计日志</div><div class="d">记录每次导入的操作人、文件与映射快照</div></div>
+            <div class="switch"></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+  </div>
+</main>
+
+<script>
+/* ---------- 页面切换 ---------- */
+const titles = {
+  dashboard: ['班级看板', '高二（3）班 · 2026-2027 学年 · 期中考试'],
+  grade: ['年级对比', '高二年级 · 12 个班 · 2026 秋季学期'],
+  student: ['学生档案', '陈雨桐 · 高二（3）班 · 学号 2024030115'],
+  import: ['成绩导入', '上传 → AI 映射 → 人工确认 → 校验入库'],
+  history: ['导入历史', '全部导入操作可审计、可撤销'],
+  settings: ['系统设置', '统计口径 · 安全策略 · 备份'],
+};
+const chartInited = {};
+document.querySelectorAll('.nav-item').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.nav-item').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+    const page = 'page-' + btn.dataset.page;
+    document.getElementById(page).classList.add('active');
+    const t = titles[btn.dataset.page];
+    document.getElementById('pageTitle').textContent = t[0];
+    document.getElementById('pageCrumb').textContent = t[1];
+    if (!chartInited[btn.dataset.page]) { chartInited[btn.dataset.page] = true; initChartsFor(btn.dataset.page); }
+    window.scrollTo({ top: 0 });
+  });
+});
+
+/* ---------- ECharts 公共配置 ---------- */
+const PALETTE = ['#3B7CFF', '#10B981', '#F59E0B', '#8B5CF6', '#F43F5E', '#06B6D4'];
+const baseAxis = {
+  axisLine: { lineStyle: { color: '#E8EDF4' } },
+  axisTick: { show: false },
+  axisLabel: { color: '#94A3B8', fontSize: 11.5 },
+  splitLine: { lineStyle: { color: '#F1F5F9' } },
+};
+function mk(id, opt) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  const c = echarts.init(el);
+  c.setOption(opt);
+  window.addEventListener('resize', () => c.resize());
+}
+
+function initDashboard() {
+  mk('chartSubject', {
+    color: PALETTE,
+    tooltip: { trigger: 'axis' },
+    legend: { top: 8, right: 12, itemWidth: 12, itemHeight: 8, textStyle: { color: '#475569', fontSize: 12 } },
+    grid: { left: 46, right: 20, top: 44, bottom: 28 },
+    xAxis: { type: 'category', data: ['语文', '数学', '英语', '物理', '化学', '生物'], axisLabel: baseAxis.axisLabel, axisLine: baseAxis.axisLine, axisTick: { show: false } },
+    yAxis: { type: 'value', max: 150, ...baseAxis },
+    series: [
+      { name: '本班平均分', type: 'bar', barWidth: 18, itemStyle: { borderRadius: [6, 6, 0, 0], color: '#3B7CFF' }, data: [118.6, 124.3, 121.8, 82.4, 78.9, 74.2],
+        markLine: { silent: true, symbol: 'none', lineStyle: { color: '#F59E0B', type: 'dashed' }, data: [{ yAxis: 90, label: { formatter: '及格线', color: '#B47509', fontSize: 11 } }] } },
+      { name: '年级平均分', type: 'bar', barWidth: 18, itemStyle: { borderRadius: [6, 6, 0, 0], color: '#C7DCFF' }, data: [114.2, 118.9, 118.4, 80.1, 76.5, 71.8] }
+    ]
+  });
+  mk('chartTrend', {
+    color: PALETTE,
+    tooltip: { trigger: 'axis' },
+    grid: { left: 46, right: 24, top: 36, bottom: 28 },
+    xAxis: { type: 'category', data: ['高二·月考1', '高二·月考2', '高二·月考3', '高二·期末', '高二·期中'], boundaryGap: false, axisLabel: baseAxis.axisLabel, axisLine: baseAxis.axisLine, axisTick: { show: false } },
+    yAxis: { type: 'value', min: 460, max: 540, ...baseAxis },
+    series: [{
+      name: '班级总分平均分', type: 'line', smooth: true, symbolSize: 8,
+      lineStyle: { width: 3, color: '#10B981' },
+      itemStyle: { color: '#10B981', borderWidth: 2, borderColor: '#fff' },
+      areaStyle: { color: { type: 'linear', x: 0, y: 0, x2: 0, y2: 1, colorStops: [{ offset: 0, color: 'rgba(16,185,129,.22)' }, { offset: 1, color: 'rgba(16,185,129,0)' }] } },
+      data: [486.5, 492.1, 498.8, 506.2, 512.4],
+      markLine: { silent: true, symbol: 'none', lineStyle: { color: '#94A3B8', type: 'dashed' }, data: [{ yAxis: 498.7, label: { formatter: '年级均值', color: '#94A3B8', fontSize: 11 } }] }
+    }]
+  });
+  mk('chartDist', {
+    color: PALETTE,
+    tooltip: { trigger: 'axis' },
+    grid: { left: 42, right: 20, top: 30, bottom: 28 },
+    xAxis: { type: 'category', data: ['0-60', '60-70', '70-80', '80-90', '90-100', '100-110', '110-120', '120-130', '130-140', '140-150'], axisLabel: { ...baseAxis.axisLabel, interval: 0, fontSize: 10.5 }, axisLine: baseAxis.axisLine, axisTick: { show: false } },
+    yAxis: { type: 'value', ...baseAxis },
+    series: [{
+      name: '人数', type: 'bar', barWidth: 14,
+      data: [1, 2, 3, 5, 6, 8, 9, 6, 3, 2].map(v => ({
+        value: v,
+        itemStyle: { borderRadius: [5, 5, 0, 0], color: v >= 6 ? '#3B7CFF' : (v >= 3 ? '#93B8FF' : '#F59E0B') }
+      }))
+    }]
+  });
+}
+function initStudent() {
+  mk('chartRadar', {
+    tooltip: {},
+    radar: {
+      indicator: [{ name: '语文', max: 150 }, { name: '数学', max: 150 }, { name: '英语', max: 150 }, { name: '物理', max: 100 }, { name: '化学', max: 100 }, { name: '生物', max: 100 }],
+      radius: '66%', center: ['50%', '54%'],
+      axisName: { color: '#475569', fontSize: 12 },
+      splitArea: { areaStyle: { color: ['#FFFFFF', '#F6F9FE'] } },
+      splitLine: { lineStyle: { color: '#E8EDF4' } },
+      axisLine: { lineStyle: { color: '#E8EDF4' } }
+    },
+    series: [{
+      type: 'radar', symbolSize: 5,
+      data: [
+        { value: [126, 145, 138, 92, 81, 74], name: '陈雨桐',
+          lineStyle: { width: 3, color: '#8B5CF6' }, itemStyle: { color: '#8B5CF6' },
+          areaStyle: { color: 'rgba(139,92,246,.15)' } },
+        { value: [118.6, 124.3, 121.8, 82.4, 78.9, 71.2], name: '班级平均',
+          lineStyle: { width: 2, type: 'dashed', color: '#94A3B8' }, itemStyle: { color: '#94A3B8' },
+          areaStyle: { color: 'rgba(148,163,184,.06)' } }
+      ]
+    }],
+    legend: { bottom: 6, itemWidth: 14, textStyle: { color: '#475569', fontSize: 12 } }
+  });
+  mk('chartRank', {
+    tooltip: { trigger: 'axis' },
+    grid: { left: 42, right: 24, top: 36, bottom: 28 },
+    xAxis: { type: 'category', data: ['月考1', '月考2', '月考3', '期末', '期中'], boundaryGap: false, axisLabel: baseAxis.axisLabel, axisLine: baseAxis.axisLine, axisTick: { show: false } },
+    yAxis: { type: 'value', inverse: true, min: 1, max: 15, ...baseAxis },
+    series: [{
+      name: '班级名次', type: 'line', smooth: true, symbolSize: 8,
+      lineStyle: { width: 3, color: '#3B7CFF' },
+      itemStyle: { color: '#3B7CFF', borderWidth: 2, borderColor: '#fff' },
+      data: [9, 8, 6, 4, 1],
+      markPoint: { data: [{ type: 'min', name: '最佳' }], itemStyle: { color: '#10B981' }, label: { color: '#fff' } }
+    }]
+  });
+}
+function initGrade() {
+  mk('chartClassCompare', {
+    color: PALETTE,
+    tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' } },
+    legend: { top: 8, right: 12, itemWidth: 12, itemHeight: 8, textStyle: { color: '#475569', fontSize: 12 } },
+    grid: { left: 50, right: 20, top: 44, bottom: 28 },
+    xAxis: { type: 'category', data: ['1班', '2班', '3班', '4班', '5班', '6班', '7班', '8班', '9班', '10班', '11班', '12班'], axisLabel: baseAxis.axisLabel, axisLine: baseAxis.axisLine, axisTick: { show: false } },
+    yAxis: { type: 'value', min: 420, max: 540, ...baseAxis },
+    series: [
+      { name: '总分平均分', type: 'bar', barWidth: 16, itemStyle: { borderRadius: [6, 6, 0, 0], color: '#3B7CFF' },
+        data: [515.2, 509.8, 512.4, 478.6, 492.3, 501.7, 488.9, 521.3, 495.6, 483.2, 508.4, 472.1],
+        markLine: { silent: true, symbol: 'none', lineStyle: { color: '#F59E0B', type: 'dashed' }, data: [{ yAxis: 498.7, label: { formatter: '年级均值', color: '#B47509', fontSize: 11 } }] } }
+    ]
+  });
+}
+function initChartsFor(page) {
+  if (page === 'dashboard') initDashboard();
+  if (page === 'student') initStudent();
+  if (page === 'grade') initGrade();
+}
+initChartsFor('dashboard');
+chartInited['dashboard'] = true;
+</script>
+</body>
+</html>

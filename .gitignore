@@ -1,0 +1,31 @@
+# dependencies
+node_modules/
+.pnpm-store/
+
+# builds
+dist/
+build/
+*.tsbuildinfo
+coverage/
+
+# env
+.env
+.env.*
+!.env.example
+
+# runtime data
+data/
+uploads/
+backups/
+logs/
+*.log
+
+# tooling
+.qoder-credits/
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db
+
+# prisma
+apps/api/prisma/*.db
