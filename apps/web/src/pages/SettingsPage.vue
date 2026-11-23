@@ -26,7 +26,7 @@
     </div>
 
     <div class="card">
-      <div class="card-head"><h3>系统信息</h3><span class="chip gray">v0.1.0</span></div>
+      <div class="card-head"><h3>系统信息</h3><span class="chip gray">v0.2.0</span></div>
       <div class="setting-row" style="padding: 14px 20px; border-bottom: 1px solid #f1f5f9">
         <div>
           <div style="font-size: 13.5px; font-weight: 600">当前学期</div>
@@ -37,7 +37,7 @@
       <div class="setting-row" style="padding: 14px 20px; border-bottom: 1px solid #f1f5f9">
         <div>
           <div style="font-size: 13.5px; font-weight: 600">AI 表头映射</div>
-          <div class="hint">v0.1.0 使用规则建议 + 人工确认；AI 接口在后续版本接入</div>
+          <div class="hint">v0.2.0 使用规则建议 + 人工确认；AI 接口在后续版本接入</div>
         </div>
         <span class="chip gray right">未启用</span>
       </div>
@@ -62,7 +62,7 @@
       <span class="chip mint">数据导入模板完善</span>
     </div>
     <div class="hint" style="padding: 0 24px 20px">
-      当前 0.1.0 已覆盖：登录与角色范围、班级看板、年级对比、学生档案、手动映射导入、导入历史。
+      当前 0.2.0 已覆盖：登录与角色范围、班级看板、年级对比、学生档案、手动映射导入、导入历史。
     </div>
   </div>
 </template>
