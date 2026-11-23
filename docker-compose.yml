@@ -1,0 +1,22 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: scorelens-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: scorelens
+      POSTGRES_PASSWORD: scorelens
+      POSTGRES_DB: scorelens
+      TZ: Asia/Shanghai
+    ports:
+      - "5432:5432"
+    volumes:
+      - scorelens-pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U scorelens -d scorelens"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  scorelens-pgdata:

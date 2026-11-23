@@ -22,8 +22,10 @@ logs/
 
 # tooling
 .qoder-credits/
+.playwright-mcp/
 .idea/
 .vscode/
+.tmp-*
 .DS_Store
 Thumbs.db
 
