@@ -202,6 +202,10 @@ const radarChart = computed(() => {
 
 const rankChart = computed(() => {
   const trend = data.value?.rankTrend ?? []
+  const rankValues = trend
+    .map((item) => item.classRank)
+    .filter((rank): rank is number => rank !== null)
+  const maxRank = Math.max(15, ...rankValues, 1)
   return {
     tooltip: { trigger: 'axis' },
     grid: { left: 44, right: 24, top: 30, bottom: 30 },
@@ -222,7 +226,10 @@ const rankChart = computed(() => {
       type: 'value',
       inverse: true,
       min: 1,
-      axisLabel: { color: '#94A3B8', fontSize: 11 },
+      max: maxRank,
+      minInterval: 1,
+      splitNumber: 7,
+      axisLabel: { color: '#94A3B8', fontSize: 11, formatter: '{value}' },
       splitLine: { lineStyle: { color: '#F1F5F9' } },
     },
     series: [
@@ -235,6 +242,11 @@ const rankChart = computed(() => {
         lineStyle: { width: 3, color: '#3B7CFF' },
         itemStyle: { color: '#3B7CFF', borderWidth: 2, borderColor: '#fff' },
         data: trend.map((item) => item.classRank),
+        markPoint: {
+          data: [{ type: 'min', name: '最佳' }],
+          itemStyle: { color: '#10B981' },
+          label: { color: '#fff', fontSize: 10 },
+        },
       },
     ],
   }

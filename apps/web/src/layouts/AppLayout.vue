@@ -32,7 +32,7 @@
 
       <div class="sidebar-footer">
         <div class="tip">
-          <b>v0.1.0</b> · 手动映射导入已可用；AI 表头识别与汇总表优化将在后续版本接入。
+          <b>v0.2.0</b> · 手动映射导入已可用；AI 表头识别与汇总表优化将在后续版本接入。
         </div>
       </div>
 
@@ -56,33 +56,46 @@
         </div>
         <div class="spacer" />
 
-        <div v-if="context.isSubjectViewer" class="select-mock">
+        <div v-if="context.isSubjectViewer" class="topbar-field">
           <span>科目</span>
-          <select v-model="context.selectedSubjectId">
-            <option v-for="subject in context.subjects" :key="subject.id" :value="subject.id">
-              {{ subject.name }}
-            </option>
-          </select>
+          <AppSelect
+            v-model="context.selectedSubjectId"
+            :options="subjectOptions"
+            size="sm"
+            class="topbar-select is-subject"
+            placeholder="暂无科目"
+            :min-menu-width="110"
+          />
         </div>
 
-        <div class="select-mock">
+        <div class="topbar-field">
           <span>考试</span>
-          <select v-model="context.selectedExamId" :disabled="context.availableExams.length === 0">
-            <option v-if="context.availableExams.length === 0" value="">暂无考试</option>
-            <option v-for="exam in context.availableExams" :key="exam.id" :value="exam.id">
-              {{ exam.name }}
-            </option>
-          </select>
+          <AppSelect
+            v-model="context.selectedExamId"
+            :options="examOptions"
+            :searchable="examOptions.length > 6"
+            size="sm"
+            class="topbar-select"
+            :disabled="examOptions.length === 0"
+            placeholder="暂无考试"
+            search-placeholder="搜索考试"
+            :min-menu-width="170"
+          />
         </div>
 
-        <div class="select-mock">
+        <div class="topbar-field">
           <span>班级</span>
-          <select v-model="context.selectedClassId" :disabled="context.classes.length === 0">
-            <option v-if="context.classes.length === 0" value="">暂无班级</option>
-            <option v-for="klass in context.classes" :key="klass.id" :value="klass.id">
-              {{ klass.name }}
-            </option>
-          </select>
+          <AppSelect
+            v-model="context.selectedClassId"
+            :options="classOptions"
+            :searchable="classOptions.length > 6"
+            size="sm"
+            class="topbar-select is-class"
+            :disabled="classOptions.length === 0"
+            placeholder="暂无班级"
+            search-placeholder="搜索班级"
+            :min-menu-width="158"
+          />
         </div>
       </header>
 
@@ -100,6 +113,7 @@ import { computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import type { RoleCode } from '@scorelens/shared'
 import AppIcon from '../components/AppIcon.vue'
+import AppSelect from '../components/AppSelect.vue'
 import { useAuthStore } from '../stores/auth'
 import { useContextStore } from '../stores/context'
 
@@ -170,6 +184,29 @@ const visibleGroups = computed(() =>
       items: group.items.filter((item) => auth.hasRole(item.roles)),
     }))
     .filter((group) => group.items.length > 0),
+)
+
+const subjectOptions = computed(() =>
+  context.subjects.map((subject) => ({
+    value: subject.id,
+    label: subject.name,
+  })),
+)
+
+const examOptions = computed(() =>
+  context.availableExams.map((exam) => ({
+    value: exam.id,
+    label: exam.name,
+    hint: exam.heldAt.slice(5),
+  })),
+)
+
+const classOptions = computed(() =>
+  context.classes.map((klass) => ({
+    value: klass.id,
+    label: klass.name,
+    hint: `${klass.studentCount} 人`,
+  })),
 )
 
 const pageTitle = computed(() => String(route.meta.title ?? '成绩云析'))

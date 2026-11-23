@@ -4,12 +4,16 @@
       <h3>学生名单</h3>
       <span class="chip gray">{{ students.length }} 人</span>
       <div class="right">
-        <select v-model="classFilter" class="select" style="width: 160px">
-          <option value="">全部班级</option>
-          <option v-for="klass in context.classes" :key="klass.id" :value="klass.id">
-            {{ klass.name }}
-          </option>
-        </select>
+        <AppSelect
+          v-model="classFilter"
+          :options="classOptions"
+          :searchable="classOptions.length > 6"
+          size="sm"
+          class="filter-select"
+          placeholder="全部班级"
+          search-placeholder="搜索班级"
+          :min-menu-width="200"
+        />
       </div>
     </div>
 
@@ -22,6 +26,18 @@
       />
       <button class="btn" @click="applySearch">查询</button>
       <button v-if="search || classFilter" class="btn ghost" @click="reset">重置</button>
+      <AppSelect
+        v-if="students.length > 0"
+        v-model="quickStudentId"
+        :options="studentOptions"
+        searchable
+        size="sm"
+        class="quick-student-select"
+        placeholder="快速定位学生…"
+        search-placeholder="搜索姓名 / 学号 / 班级"
+        :min-menu-width="290"
+        @update:model-value="quickOpen"
+      />
     </div>
 
     <div v-if="query.isPending.value" class="loading-block">正在加载学生名单…</div>
@@ -68,6 +84,7 @@
 import { computed, ref, watch } from 'vue'
 import { useQuery } from '@tanstack/vue-query'
 import { useRouter } from 'vue-router'
+import AppSelect from '../components/AppSelect.vue'
 import { api } from '../api/client'
 import { useContextStore } from '../stores/context'
 
@@ -77,6 +94,7 @@ const router = useRouter()
 const classFilter = ref('')
 const searchInput = ref('')
 const search = ref('')
+const quickStudentId = ref('')
 
 watch(
   () => context.selectedClassId,
@@ -93,8 +111,30 @@ const query = useQuery({
 
 const students = computed(() => query.data.value ?? [])
 
+const classOptions = computed(() => [
+  { value: '', label: '全部班级' },
+  ...context.classes.map((klass) => ({
+    value: klass.id,
+    label: klass.name,
+    hint: `${klass.studentCount} 人`,
+  })),
+])
+
+const studentOptions = computed(() =>
+  students.value.map((student) => ({
+    value: student.id,
+    label: `${student.name} · ${student.studentNo}`,
+    hint: student.className,
+  })),
+)
+
 function applySearch() {
   search.value = searchInput.value
+}
+
+function quickOpen(id: string) {
+  if (!id) return
+  router.push(`/students/${id}`)
 }
 
 function reset() {

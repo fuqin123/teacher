@@ -35,12 +35,14 @@
       <div style="padding: 16px 24px 0">
         <div class="field">
           <label>班级</label>
-          <select v-model="classId" class="select">
-            <option value="" disabled>请选择班级</option>
-            <option v-for="klass in context.classes" :key="klass.id" :value="klass.id">
-              {{ klass.name }}（{{ klass.studentCount }} 人）
-            </option>
-          </select>
+          <AppSelect
+            v-model="classId"
+            :options="classOptions"
+            searchable
+            placeholder="请选择班级"
+            search-placeholder="搜索班级"
+            :min-menu-width="260"
+          />
         </div>
       </div>
 
@@ -80,7 +82,7 @@
     <div class="card">
       <div class="card-head">
         <h3>导入说明</h3>
-        <span class="chip blue">v0.1.0 手动映射</span>
+        <span class="chip blue">v0.2.0 手动映射</span>
       </div>
       <div style="padding: 16px 24px 22px; font-size: 13px; color: var(--ink-2); line-height: 1.9">
         <p><b>标准宽表：</b>一行一个学生，包含学号、姓名和各科成绩列。</p>
@@ -113,11 +115,11 @@
           </div>
           <div class="field">
             <label>考试类型</label>
-            <select v-model="examForm.type" class="select">
-              <option v-for="type in examTypes" :key="type" :value="type">
-                {{ examTypeLabels[type] }}
-              </option>
-            </select>
+            <AppSelect
+              v-model="examForm.type"
+              :options="examTypeOptions"
+              :min-menu-width="180"
+            />
           </div>
           <div class="field">
             <label>考试日期</label>
@@ -141,11 +143,15 @@
               <td style="font-weight: 600; color: var(--ink)">{{ header }}</td>
               <td class="muted">{{ uploadResult.samples[0]?.[index] ?? '—' }}</td>
               <td>
-                <select v-model="mappingColumns[index].target" class="mapping-select">
-                  <option v-for="option in targetOptions" :key="option.value" :value="option.value">
-                    {{ option.label }}
-                  </option>
-                </select>
+                <AppSelect
+                  v-model="mappingColumns[index].target"
+                  :options="targetOptions"
+                  searchable
+                  size="sm"
+                  class="mapping-select"
+                  search-placeholder="搜索字段 / 科目"
+                  :min-menu-width="230"
+                />
               </td>
               <td>
                 <span class="chip" :class="suggestionClass(suggestionFor(index)?.confidence)">
@@ -322,6 +328,7 @@ import {
   type ParsedImportResponse,
 } from '@scorelens/shared'
 import AppIcon from '../components/AppIcon.vue'
+import AppSelect from '../components/AppSelect.vue'
 import { api } from '../api/client'
 import { useContextStore } from '../stores/context'
 
@@ -339,11 +346,26 @@ const busy = ref(false)
 const error = ref('')
 const mappingColumns = ref<Array<{ index: number; target: string }>>([])
 const subjectConfigs = ref<Record<string, { fullScore: number; includedInTotal: boolean }>>({})
-const examForm = reactive<{ name: string; type: ExamType; heldAt: string }>({
+const examForm = reactive<{ name: string; type: string; heldAt: string }>({
   name: '',
   type: 'midterm',
   heldAt: new Date().toISOString().slice(0, 10),
 })
+
+const classOptions = computed(() =>
+  context.classes.map((klass) => ({
+    value: klass.id,
+    label: klass.name,
+    hint: `${klass.studentCount} 人`,
+  })),
+)
+
+const examTypeOptions = computed(() =>
+  examTypes.map((type) => ({
+    value: type,
+    label: examTypeLabels[type],
+  })),
+)
 
 const targetOptions = computed(() => [
   { value: 'student_no', label: '学生学号' },
@@ -472,7 +494,7 @@ async function saveAndValidate() {
       })),
       exam: {
         name: examForm.name,
-        type: examForm.type,
+        type: examForm.type as ExamType,
         heldAt: examForm.heldAt,
       },
       subjects,
