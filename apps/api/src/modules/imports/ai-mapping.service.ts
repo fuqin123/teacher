@@ -1,11 +1,11 @@
 import { Injectable, Logger } from '@nestjs/common'
-import { ConfigService } from '@nestjs/config'
 import {
   AiMappingResponse,
   AiStatusResponse,
   ImportSuggestion,
   aiMappingResponseSchema,
 } from '@scorelens/shared'
+import { AiConfigService } from '../../ai/ai-config.service'
 
 interface SubjectHint {
   id: string
@@ -32,10 +32,6 @@ export interface AiSuggestOutcome {
   usage: { promptTokens: number | null; completionTokens: number | null } | null
 }
 
-const DEFAULT_BASE_URL = 'https://api.deepseek.com/v1'
-const DEFAULT_MODEL = 'deepseek-chat'
-const DEFAULT_TIMEOUT_MS = 25000
-
 const SYSTEM_PROMPT = `你是中国湖南省初中成绩表的结构识别助手。
 你的任务：根据表格表头与前几行样例，判断每一列的含义，并给出考试元信息与科目满分建议。
 
@@ -59,27 +55,16 @@ exam.type 只能取 monthly / midterm / final / other；heldAt 无法判断时�
 export class AiMappingService {
   private readonly logger = new Logger(AiMappingService.name)
 
-  constructor(private readonly config: ConfigService) {}
+  constructor(private readonly aiConfig: AiConfigService) {}
 
-  status(): AiStatusResponse {
-    const enabled = this.isEnabled()
-    const baseUrl = this.baseUrl()
-    let endpointHost: string | null = null
-    try {
-      endpointHost = new URL(baseUrl).host
-    } catch {
-      endpointHost = null
-    }
-    return {
-      enabled,
-      model: enabled ? this.model() : null,
-      endpointHost,
-    }
+  status(): Promise<AiStatusResponse> {
+    return this.aiConfig.status()
   }
 
   async suggest(input: AiSuggestInput): Promise<AiSuggestOutcome> {
-    const model = this.model()
-    if (!this.isEnabled()) {
+    const config = await this.aiConfig.runtime()
+    const model = config.model
+    if (!config.enabled || !config.apiKey) {
       return {
         mapping: null,
         columns: [],
@@ -106,13 +91,13 @@ export class AiMappingService {
     }
 
     const controller = new AbortController()
-    const timer = setTimeout(() => controller.abort(), this.timeoutMs())
+    const timer = setTimeout(() => controller.abort(), config.timeoutMs)
     try {
-      const response = await fetch(`${this.baseUrl().replace(/\/$/, '')}/chat/completions`, {
+      const response = await fetch(`${config.baseUrl.replace(/\/$/, '')}/chat/completions`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          Authorization: `Bearer ${this.apiKey()}`,
+          Authorization: `Bearer ${config.apiKey}`,
         },
         signal: controller.signal,
         body: JSON.stringify({
@@ -184,7 +169,7 @@ export class AiMappingService {
         mapping: null,
         columns: [],
         message: aborted
-          ? `AI 响应超时（${this.timeoutMs()}ms），已回退到规则建议`
+          ? `AI 响应超时（${config.timeoutMs}ms），已回退到规则建议`
           : 'AI 服务不可用，已回退到规则建议',
         model,
         usage: null,
@@ -246,27 +231,5 @@ export class AiMappingService {
     } catch {
       return null
     }
-  }
-
-  private isEnabled() {
-    const flag = (this.config.get<string>('AI_ENABLED') ?? '').toLowerCase()
-    return (flag === 'true' || flag === '1') && Boolean(this.apiKey())
-  }
-
-  private apiKey() {
-    return this.config.get<string>('AI_API_KEY') ?? ''
-  }
-
-  private baseUrl() {
-    return this.config.get<string>('AI_BASE_URL')?.trim() || DEFAULT_BASE_URL
-  }
-
-  private model() {
-    return this.config.get<string>('AI_MODEL')?.trim() || DEFAULT_MODEL
-  }
-
-  private timeoutMs() {
-    const value = Number(this.config.get<string>('AI_TIMEOUT_MS') ?? DEFAULT_TIMEOUT_MS)
-    return Number.isFinite(value) && value >= 3000 ? value : DEFAULT_TIMEOUT_MS
   }
 }

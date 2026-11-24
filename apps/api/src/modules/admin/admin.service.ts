@@ -24,9 +24,11 @@ import {
   TermInput,
   TermUpdateInput,
   RoleCode,
+  AiSettingsInput,
 } from '@scorelens/shared'
 import { Request } from 'express'
 import { AccessService } from '../../access/access.service'
+import { AiConfigService } from '../../ai/ai-config.service'
 import { AuditService } from '../../audit/audit.service'
 import { PrismaService } from '../../prisma/prisma.service'
 
@@ -52,6 +54,7 @@ export class AdminService {
     private readonly prisma: PrismaService,
     private readonly access: AccessService,
     private readonly audit: AuditService,
+    private readonly aiConfig: AiConfigService,
   ) {}
 
   async assertAdmin(userId: string) {
@@ -570,6 +573,55 @@ export class AdminService {
       request,
     })
     return { ok: true }
+  }
+
+  /* ---------------- AI 表头识别配置 ---------------- */
+
+  async getAiSettings(userId: string) {
+    await this.assertAdmin(userId)
+    return this.aiConfig.view()
+  }
+
+  async saveAiSettings(userId: string, input: AiSettingsInput, request: Request) {
+    await this.assertAdmin(userId)
+    const view = await this.aiConfig.save(input, userId)
+    await this.audit.log({
+      actorId: userId,
+      action: 'admin.ai_settings.update',
+      entityType: 'app_setting',
+      entityId: 'ai_config',
+      // 只记录非敏感字段，绝不记录 API Key
+      detail: {
+        enabled: input.enabled,
+        baseUrl: input.baseUrl,
+        model: input.model,
+        timeoutMs: input.timeoutMs,
+        apiKeyChanged: Boolean(input.apiKey),
+      },
+      request,
+    })
+    return view
+  }
+
+  async testAiSettings(
+    userId: string,
+    overrides: { baseUrl?: string; model?: string; apiKey?: string },
+  ) {
+    await this.assertAdmin(userId)
+    return this.aiConfig.test(overrides)
+  }
+
+  async resetAiSettings(userId: string, request: Request) {
+    await this.assertAdmin(userId)
+    const view = await this.aiConfig.reset()
+    await this.audit.log({
+      actorId: userId,
+      action: 'admin.ai_settings.reset',
+      entityType: 'app_setting',
+      entityId: 'ai_config',
+      request,
+    })
+    return view
   }
 
   /* ---------------- 内部工具 ---------------- */

@@ -1,3 +1,10 @@
+{
+	# 用裸 IP 访问 HTTPS 时，客户端（浏览器 / curl）不会发送 SNI，
+	# Caddy 无法据此选择证书，握手会以 "tlsv1 alert internal error" 结束。
+	# 这里指定默认证书名，取值应为 SITE_ADDRESS 的 IP 或域名；域名部署时客户端带 SNI，此项不生效。
+	default_sni {$TLS_DEFAULT_SNI:localhost}
+}
+
 {$SITE_ADDRESS} {
 	encode zstd gzip
 

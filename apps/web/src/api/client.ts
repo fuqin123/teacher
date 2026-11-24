@@ -4,8 +4,11 @@ import type {
   AdminStudentRow,
   AdminSubjectRow,
   AdminTermRow,
+  AiSettingsInput,
+  AiSettingsView,
   AiStatusResponse,
   AiSuggestResponse,
+  AiTestResult,
   ApiErrorBody,
   ClassInput,
   ClassOption,
@@ -219,6 +222,54 @@ export const api = {
   },
   suggestImportMapping(batchId: string) {
     return request<AiSuggestResponse>(`/imports/${batchId}/ai-suggest`, { method: 'POST' })
+  },
+
+  async downloadTemplate(classId?: string) {
+    const response = await fetch(`${BASE}/imports/template${query({ classId })}`, {
+      credentials: 'include',
+    })
+    if (!response.ok) {
+      let message = `模板下载失败（${response.status}）`
+      try {
+        const body = (await response.json()) as ApiErrorBody
+        if (body?.message) message = body.message
+      } catch {
+        // 忽略解析失败
+      }
+      throw new ApiError(response.status, null, message)
+    }
+    const disposition = response.headers.get('Content-Disposition') ?? ''
+    const encoded = /filename\*=UTF-8''([^;]+)/i.exec(disposition)?.[1]
+    const fileName = encoded
+      ? decodeURIComponent(encoded)
+      : `成绩导入模板_${new Date().toISOString().slice(0, 10)}.xlsx`
+    const blob = await response.blob()
+    const url = URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.href = url
+    link.download = fileName
+    link.click()
+    URL.revokeObjectURL(url)
+    return fileName
+  },
+
+  getAiSettings() {
+    return request<AiSettingsView>('/admin/ai-settings')
+  },
+  saveAiSettings(input: AiSettingsInput) {
+    return request<AiSettingsView>('/admin/ai-settings', {
+      method: 'PUT',
+      body: JSON.stringify(input),
+    })
+  },
+  testAiSettings(input: { baseUrl?: string; model?: string; apiKey?: string }) {
+    return request<AiTestResult>('/admin/ai-settings/test', {
+      method: 'POST',
+      body: JSON.stringify(input),
+    })
+  },
+  resetAiSettings() {
+    return request<AiSettingsView>('/admin/ai-settings', { method: 'DELETE' })
   },
 
   getAdminTerms() {

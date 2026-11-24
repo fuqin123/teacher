@@ -112,6 +112,40 @@ export interface AiStatusResponse {
   enabled: boolean
   model: string | null
   endpointHost: string | null
+  /** 配置来源：管理员界面保存到数据库，或环境变量 */
+  source: 'database' | 'environment'
+}
+
+export const aiSettingsInputSchema = z.object({
+  enabled: z.boolean(),
+  baseUrl: z
+    .string()
+    .trim()
+    .url('请填写以 http:// 或 https:// 开头的接口地址')
+    .max(300),
+  model: z.string().trim().min(1, '请填写模型名称').max(100),
+  timeoutMs: z.number().int().min(3000, '超时至少 3000ms').max(120000, '超时最大 120000ms'),
+  /** 留空表示保持已保存的 Key 不变 */
+  apiKey: z.string().trim().max(400).optional(),
+})
+export type AiSettingsInput = z.infer<typeof aiSettingsInputSchema>
+
+export interface AiSettingsView {
+  enabled: boolean
+  baseUrl: string
+  model: string
+  timeoutMs: number
+  hasApiKey: boolean
+  apiKeyMasked: string | null
+  source: 'database' | 'environment'
+  updatedAt: string | null
+}
+
+export interface AiTestResult {
+  ok: boolean
+  latencyMs: number
+  message: string
+  model: string
 }
 
 export interface AiSuggestResponse {
@@ -513,6 +547,7 @@ export interface ParsedImportResponse {
   fileName: string
   sheetName: string
   headerRow: number
+  headerRows: number
   headers: string[]
   samples: string[][]
   rowCount: number
@@ -606,12 +641,49 @@ export const importStatusLabels: Record<ImportStatus, string> = {
   failed: '失败',
 }
 
-export const HEADER_SYNONYMS: Record<string, string[]> = {
-  student_no: ['学号', '学籍号', '考号', '编号', '学生编号', '学生学号'],
+export const HEADER_SYNONYMS = {
+  student_no: ['学号', '学籍号', '考号', '准考证号', '编号', '学生编号', '学生学号'],
   name: ['姓名', '学生姓名', '名字'],
   class_name: ['班级', '班别', '行政班'],
   source_total: ['总分', '合计', '总成绩'],
-  ignore: ['排名', '班名次', '年级名次', '校名次', '备注', '性别'],
+  ignore: [
+    '排名',
+    '名次',
+    '班名次',
+    '年级名次',
+    '校名次',
+    '班级名次',
+    '总名次',
+    '班级排名',
+    '年级排名',
+    '班排名',
+    '校排名',
+    '学校',
+    '学校名称',
+    '序号',
+    '备注',
+    '性别',
+  ],
+} as const satisfies Record<string, readonly string[]>
+
+/**
+ * 科目别名：学校成绩表里常用简称（如“道法”“政治”），
+ * 映射时先按别名精确匹配，再做模糊匹配，避免误判。
+ */
+export const SUBJECT_CODE_ALIASES: Record<string, string[]> = {
+  chinese: ['语文', '语'],
+  math: ['数学', '数'],
+  english: ['英语', '外语', '英'],
+  physics: ['物理', '物'],
+  chemistry: ['化学', '化'],
+  biology: ['生物', '生'],
+  politics: ['道德与法治', '道法', '政治', '思想品德'],
+  history: ['历史', '史'],
+  geography: ['地理', '地'],
+  pe: ['体育'],
+  music: ['音乐'],
+  art: ['美术'],
+  it: ['信息技术', '信息'],
 }
 
 export function normalizeHeader(value: string): string {

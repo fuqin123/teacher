@@ -23,6 +23,7 @@ import {
   ExamType,
 } from '@scorelens/shared'
 import { Request } from 'express'
+import * as XLSX from 'xlsx'
 import { PrismaService } from '../../prisma/prisma.service'
 import { AccessService } from '../../access/access.service'
 import { AuditService } from '../../audit/audit.service'
@@ -121,6 +122,7 @@ export class ImportsService {
       fileName: batch.fileName,
       sheetName: parsed.sheetName,
       headerRow: parsed.headerRow,
+      headerRows: parsed.headerRows ?? 1,
       headers: parsed.headers,
       samples: parsed.samples,
       rowCount: parsed.rowCount,
@@ -129,8 +131,93 @@ export class ImportsService {
     }
   }
 
-  aiStatus(): AiStatusResponse {
+  aiStatus(): Promise<AiStatusResponse> {
     return this.ai.status()
+  }
+
+  /**
+   * 生成标准成绩导入模板（xlsx）。
+   * 列结构参考学校常用导出表：学号/姓名 → 各科分数 → 总分 → 班级排名 → 年级排名，
+   * 其中“总分/排名”列仅作参考，导入时由系统按成绩重新计算，不会覆盖。
+   */
+  async template(
+    userId: string,
+    classId?: string,
+  ): Promise<{ buffer: Buffer; fileName: string }> {
+    await this.access.assertCanImport(userId)
+
+    const subjects = await this.prisma.subject.findMany({
+      where: { isActive: true },
+      orderBy: [{ sortOrder: 'asc' }, { name: 'asc' }],
+      select: { name: true, defaultFullScore: true },
+    })
+    if (subjects.length === 0) {
+      throw new BadRequestException('还没有启用的科目，请先在基础数据中添加科目')
+    }
+
+    let title = '成绩导入模板'
+    if (classId) {
+      const klass = await this.access.assertClassAccess(userId, classId)
+      const term = await this.access.getCurrentTerm()
+      title = `${klass.name} 成绩导入模板${term ? `（${term.name}）` : ''}`
+    }
+
+    const header = [
+      '学号',
+      '姓名',
+      ...subjects.map((subject) => subject.name),
+      '总分',
+      '班级排名',
+      '年级排名',
+    ]
+    const rows: Array<Array<string | number>> = [header]
+
+    const fullScores = subjects.map((subject) =>
+      subject.defaultFullScore === null ? 100 : Number(subject.defaultFullScore),
+    )
+    const sampleStudents = [
+      { no: '202614201', name: '示例学生甲', ratio: 0.92 },
+      { no: '202614202', name: '示例学生乙', ratio: 0.78 },
+    ]
+    for (const student of sampleStudents) {
+      const scores = fullScores.map((full) => Math.round(full * student.ratio * 10) / 10)
+      const total = Math.round(scores.reduce((sum, value) => sum + value, 0) * 10) / 10
+      rows.push([student.no, student.name, ...scores, total, '', ''])
+    }
+    // 缺考示例：填“缺考”，不要留空
+    rows.push([
+      '202614203',
+      '示例学生丙',
+      ...fullScores.map(() => '缺考'),
+      '',
+      '',
+      '',
+    ])
+
+    const sheet = XLSX.utils.aoa_to_sheet([[title], ...rows])
+    sheet['!merges'] = [{ s: { r: 0, c: 0 }, e: { r: 0, c: header.length - 1 } }]
+    sheet['!cols'] = header.map((_, index) =>
+      index === 0 ? { wch: 14 } : index === 1 ? { wch: 12 } : { wch: 10 },
+    )
+
+    const guide = XLSX.utils.aoa_to_sheet([
+      ['填写说明'],
+      ['1. 一行一个学生；学号必须是本班名单中的学号（考号同样可用）。'],
+      ['2. 各科填分数；缺考请填“缺考”“免考”或“—”，不要留空，也不要填 0 表示缺考。'],
+      ['3. 总分、班级排名、年级排名可留空：系统会按各科成绩自动计算总分与名次。'],
+      ['4. 学校导出的成绩表可以直接上传：系统支持“科目 + 分数/校名次/班名次”的多级表头，原始名次列会被忽略。'],
+      ['5. 单科满分在导入向导的“科目满分配置”中按实际填写，不假设固定满分。'],
+      ['6. 单文件不超过 10MB、5000 行。'],
+    ])
+    guide['!cols'] = [{ wch: 96 }]
+
+    const workbook = XLSX.utils.book_new()
+    XLSX.utils.book_append_sheet(workbook, sheet, '成绩表')
+    XLSX.utils.book_append_sheet(workbook, guide, '填写说明')
+
+    const buffer = XLSX.write(workbook, { type: 'buffer', bookType: 'xlsx' }) as Buffer
+    const stamp = new Date().toISOString().slice(0, 10).replace(/-/g, '')
+    return { buffer, fileName: `成绩导入模板_${stamp}.xlsx` }
   }
 
   /**
@@ -142,7 +229,7 @@ export class ImportsService {
     batchId: string,
     request: Request,
   ): Promise<AiSuggestResponse> {
-    const status = this.ai.status()
+    const status = await this.ai.status()
     const batch = await this.getEditableBatch(userId, batchId)
     const parsed = batch.parsedDataJson as unknown as ParsedWorkbookData
     if (!parsed) throw new BadRequestException('导入批次缺少解析数据')

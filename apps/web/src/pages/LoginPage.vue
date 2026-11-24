@@ -28,7 +28,7 @@
           </div>
         </div>
         <p style="font-size: 12px; color: var(--ink-faint)">
-          v0.5.0 · 湖南初中 · 单机部署
+          v0.6.0 · 湖南初中 · 单机部署
         </p>
       </section>
 

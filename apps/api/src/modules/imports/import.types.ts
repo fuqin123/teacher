@@ -2,9 +2,16 @@ import { ExamType, ImportValidationIssue } from '@scorelens/shared'
 
 export interface ParsedWorkbookData {
   sheetName: string
+  /** 表头起始行（0 基） */
   headerRow: number
+  /** 表头占用的行数：学校导出的成绩表常见“科目 + 分数/名次”二级表头 */
+  headerRows: number
+  /** 数据起始行（0 基），等于 headerRow + headerRows */
+  dataStartRow: number
   headers: string[]
   rows: string[][]
+  /** 与 rows 一一对应的真实 Excel 行号（1 基），用于校验提示定位 */
+  rowNumbers: number[]
   samples: string[][]
   rowCount: number
 }

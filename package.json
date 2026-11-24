@@ -1,6 +1,6 @@
 {
   "name": "scorelens",
-  "version": "0.5.0",
+  "version": "0.6.0",
   "private": true,
   "packageManager": "pnpm@12.4.1",
   "scripts": {
@@ -12,7 +12,8 @@
     "db:reset": "pnpm --filter @scorelens/api prisma:reset",
     "db:seed": "pnpm --filter @scorelens/api prisma:seed",
     "db:studio": "pnpm --filter @scorelens/api prisma:studio",
-    "db:backup": "pnpm --filter @scorelens/api db:backup"
+    "db:backup": "pnpm --filter @scorelens/api db:backup",
+    "admin:create": "pnpm --filter @scorelens/api admin:create"
   },
   "devDependencies": {
     "concurrently": "^9.2.1"

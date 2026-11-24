@@ -6,13 +6,15 @@ import {
   Param,
   Patch,
   Post,
+  Query,
   Req,
+  Res,
   UploadedFile,
   UseInterceptors,
 } from '@nestjs/common'
 import { FileInterceptor } from '@nestjs/platform-express'
 import { memoryStorage } from 'multer'
-import { Request } from 'express'
+import { Request, Response } from 'express'
 import { importMappingSchema, ImportMappingInput } from '@scorelens/shared'
 import { CurrentUserId } from '../../common/current-user.decorator'
 import { ZodValidationPipe } from '../../common/zod-validation.pipe'
@@ -30,6 +32,27 @@ export class ImportsController {
   @Get('ai-status')
   aiStatus() {
     return this.imports.aiStatus()
+  }
+
+  @Get('template')
+  async template(
+    @CurrentUserId() userId: string,
+    @Query('classId') classId: string | undefined,
+    @Res() response: Response,
+  ) {
+    const { buffer, fileName } = await this.imports.template(
+      userId,
+      classId || undefined,
+    )
+    response.setHeader(
+      'Content-Type',
+      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    )
+    response.setHeader(
+      'Content-Disposition',
+      `attachment; filename="template.xlsx"; filename*=UTF-8''${encodeURIComponent(fileName)}`,
+    )
+    response.send(buffer)
   }
 
   @Get(':id')

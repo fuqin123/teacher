@@ -28,38 +28,76 @@
     <div class="card">
       <div class="card-head">
         <h3>AI 表头识别</h3>
-        <span class="chip" :class="ai?.enabled ? 'violet' : 'gray'">
-          {{ ai?.enabled ? '已启用' : '未启用' }}
+        <span class="chip" :class="aiForm.enabled && ai?.hasApiKey ? 'violet' : 'gray'">
+          {{ aiForm.enabled && ai?.hasApiKey ? '已启用' : '未启用' }}
         </span>
       </div>
-      <div class="setting-row" style="padding: 14px 20px; border-bottom: 1px solid #f1f5f9">
-        <div>
-          <div style="font-size: 13.5px; font-weight: 600">接入方式</div>
-          <div class="hint">
-            任意 OpenAI 兼容接口（DeepSeek / 通义 / 智谱等），配置 AI_BASE_URL 与 AI_API_KEY 即可
+
+      <div v-if="!loading" style="padding: 16px 20px 4px">
+        <label class="checkbox-row" style="margin-bottom: 14px">
+          <input v-model="aiForm.enabled" type="checkbox" />
+          启用 AI 识别（关闭时使用规则建议 + 人工映射）
+        </label>
+
+        <div class="form-grid two" style="gap: 12px">
+          <div class="field" style="grid-column: 1 / -1">
+            <label>接口地址（Base URL）</label>
+            <input
+              v-model.trim="aiForm.baseUrl"
+              class="input"
+              placeholder="https://api.deepseek.com/v1"
+            />
+            <span class="hint">OpenAI 兼容接口，需包含版本前缀（如 /v1）</span>
+          </div>
+          <div class="field">
+            <label>模型</label>
+            <input v-model.trim="aiForm.model" class="input" placeholder="deepseek-chat" />
+          </div>
+          <div class="field">
+            <label>超时（毫秒）</label>
+            <input v-model.number="aiForm.timeoutMs" type="number" min="3000" class="input" />
+          </div>
+          <div class="field" style="grid-column: 1 / -1">
+            <label>API Key</label>
+            <input
+              v-model.trim="aiForm.apiKey"
+              type="password"
+              class="input"
+              autocomplete="new-password"
+              :placeholder="ai?.hasApiKey ? `已保存 ${ai.apiKeyMasked}，留空表示不修改` : 'sk-...'"
+            />
+            <span class="hint">Key 以 AES-256-GCM 加密保存在本机数据库，接口只返回掩码</span>
           </div>
         </div>
-        <span class="chip gray right">{{ ai?.endpointHost ?? '未配置' }}</span>
-      </div>
-      <div class="setting-row" style="padding: 14px 20px; border-bottom: 1px solid #f1f5f9">
-        <div>
-          <div style="font-size: 13.5px; font-weight: 600">当前模型</div>
-          <div class="hint">只发送表头与 3 行脱敏样例，不发送完整名单与成绩</div>
+
+        <div
+          v-if="message"
+          class="page-note"
+          :style="messageError ? 'margin-top: 14px; color: #b91c3c; background: #fef2f4; border-color: #fbd0d9' : 'margin-top: 14px'"
+        >
+          {{ message }}
         </div>
-        <span class="chip blue right">{{ ai?.model ?? '—' }}</span>
-      </div>
-      <div class="setting-row" style="padding: 14px 20px">
-        <div>
-          <div style="font-size: 13.5px; font-weight: 600">失败处理</div>
-          <div class="hint">超时、报错或返回不合法时自动回退到规则建议，导入不中断</div>
+
+        <div class="card-foot" style="padding: 16px 0 0">
+          <button class="btn ghost" :disabled="busy" @click="resetAi">恢复环境变量配置</button>
+          <button class="btn" :disabled="busy" @click="testAi">
+            {{ testing ? '正在测试…' : '测试连接' }}
+          </button>
+          <button class="btn primary" :disabled="busy" @click="saveAi">
+            {{ saving ? '正在保存…' : '保存配置' }}
+          </button>
         </div>
-        <span class="chip mint right">自动降级</span>
+
+        <div class="hint" style="margin-top: 10px">
+          配置来源：{{ ai?.source === 'database' ? '管理员界面（数据库）' : '环境变量' }}
+          <span v-if="ai?.updatedAt"> · 更新于 {{ formatTime(ai.updatedAt) }}</span>
+        </div>
       </div>
     </div>
   </div>
 
   <div class="card mt-16">
-    <div class="card-head"><h3>系统信息</h3><span class="chip gray">v0.5.0</span></div>
+    <div class="card-head"><h3>系统信息</h3><span class="chip gray">v0.6.0</span></div>
     <div class="setting-row" style="padding: 14px 20px; border-bottom: 1px solid #f1f5f9">
       <div>
         <div style="font-size: 13.5px; font-weight: 600">当前学期</div>
@@ -93,25 +131,119 @@
       <span class="chip mint">导出 Excel / 打印</span>
     </div>
     <div class="hint" style="padding: 0 24px 20px">
-      当前 0.5.0 已覆盖：AI 表头识别（可降级）、管理员基础数据维护、班级看板、年级对比、学生档案、成绩导入与导入历史。
+      当前 0.6.0 已覆盖：管理员可配置 AI 接口、多级表头成绩表导入、标准模板下载、基础数据维护、班级看板与分析。
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { onMounted, ref } from 'vue'
-import type { AiStatusResponse } from '@scorelens/shared'
+import { onMounted, reactive, ref } from 'vue'
+import type { AiSettingsView } from '@scorelens/shared'
 import { api } from '../api/client'
 import { useContextStore } from '../stores/context'
 
 const context = useContextStore()
-const ai = ref<AiStatusResponse | null>(null)
+
+const ai = ref<AiSettingsView | null>(null)
+const loading = ref(true)
+const busy = ref(false)
+const saving = ref(false)
+const testing = ref(false)
+const message = ref('')
+const messageError = ref(false)
+const aiForm = reactive({
+  enabled: false,
+  baseUrl: 'https://api.deepseek.com/v1',
+  model: 'deepseek-chat',
+  timeoutMs: 25000,
+  apiKey: '',
+})
 
 onMounted(async () => {
   try {
-    ai.value = await api.getAiStatus()
-  } catch {
-    ai.value = null
+    applyView(await api.getAiSettings())
+  } catch (error) {
+    setMessage(error instanceof Error ? error.message : '加载 AI 配置失败', true)
+  } finally {
+    loading.value = false
   }
 })
+
+function applyView(view: AiSettingsView) {
+  ai.value = view
+  aiForm.enabled = view.enabled
+  aiForm.baseUrl = view.baseUrl
+  aiForm.model = view.model
+  aiForm.timeoutMs = view.timeoutMs
+  aiForm.apiKey = ''
+}
+
+function setMessage(text: string, isError = false) {
+  message.value = text
+  messageError.value = isError
+}
+
+async function saveAi() {
+  if (saving.value) return
+  saving.value = true
+  busy.value = true
+  try {
+    const view = await api.saveAiSettings({
+      enabled: aiForm.enabled,
+      baseUrl: aiForm.baseUrl,
+      model: aiForm.model,
+      timeoutMs: Number(aiForm.timeoutMs),
+      apiKey: aiForm.apiKey || undefined,
+    })
+    applyView(view)
+    setMessage('已保存。后续导入会立即使用新配置，无需重启服务。')
+  } catch (error) {
+    setMessage(error instanceof Error ? error.message : '保存失败', true)
+  } finally {
+    saving.value = false
+    busy.value = false
+  }
+}
+
+async function testAi() {
+  if (testing.value) return
+  testing.value = true
+  busy.value = true
+  try {
+    const result = await api.testAiSettings({
+      baseUrl: aiForm.baseUrl,
+      model: aiForm.model,
+      apiKey: aiForm.apiKey || undefined,
+    })
+    setMessage(
+      `${result.ok ? '✓' : '✗'} ${result.message}（耗时 ${result.latencyMs}ms · 模型 ${result.model}）`,
+      !result.ok,
+    )
+  } catch (error) {
+    setMessage(error instanceof Error ? error.message : '测试失败', true)
+  } finally {
+    testing.value = false
+    busy.value = false
+  }
+}
+
+async function resetAi() {
+  if (busy.value) return
+  if (!window.confirm('确定清除界面保存的 AI 配置，改用环境变量吗？')) return
+  busy.value = true
+  try {
+    applyView(await api.resetAiSettings())
+    setMessage('已恢复为环境变量配置。')
+  } catch (error) {
+    setMessage(error instanceof Error ? error.message : '操作失败', true)
+  } finally {
+    busy.value = false
+  }
+}
+
+function formatTime(value: string) {
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return value
+  return date.toLocaleString('zh-CN', { hour12: false })
+}
 </script>

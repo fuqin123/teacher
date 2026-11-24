@@ -32,7 +32,7 @@
 
       <div class="sidebar-footer">
         <div class="tip">
-          <b>v0.5.0</b> · AI 表头识别 + 管理员基础数据维护；面向湖南初中，数据保存在本机 SQLite。
+          <b>v0.6.0</b> · AI 接口可在系统设置中配置；支持学校导出的多级表头成绩表与标准模板下载。
         </div>
       </div>
 

@@ -129,8 +129,11 @@ export class ImportValidatorService {
     let errorRows = 0
     let warningRows = 0
 
+    // 多级表头时数据从 dataStartRow 开始；旧批次没有该字段，回退为“表头下一行”
+    const dataStartRow = parsed.dataStartRow ?? parsed.headerRow + 1
+
     parsed.rows.forEach((row, index) => {
-      const rowNumber = mapping.headerRow + index + 2
+      const rowNumber = parsed.rowNumbers?.[index] ?? dataStartRow + index + 1
       let rowHasError = false
       let rowHasWarning = false
 

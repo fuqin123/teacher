@@ -10,6 +10,7 @@ import { ExamsModule } from './modules/exams/exams.module'
 import { ImportsModule } from './modules/imports/imports.module'
 import { AnalyticsModule } from './modules/analytics/analytics.module'
 import { AdminModule } from './modules/admin/admin.module'
+import { AiConfigModule } from './ai/ai-config.module'
 import { AuthGuard } from './common/auth.guard'
 import { AppController } from './app.controller'
 
@@ -18,6 +19,7 @@ import { AppController } from './app.controller'
     ConfigModule.forRoot({ isGlobal: true }),
     PrismaModule,
     AccessModule,
+    AiConfigModule,
     AuditModule,
     AuthModule,
     RosterModule,

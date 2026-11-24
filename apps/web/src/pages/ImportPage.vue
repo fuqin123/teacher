@@ -91,6 +91,7 @@
         <p><b>缺考：</b>填写“缺考”“缺”“免考”或“—”，不要留空。</p>
         <p><b>学号：</b>必须是本班名单中的学号；数字 0 是有效成绩。</p>
         <p><b>考试记录：</b>下一步填写考试名称、类型与日期，入库时会自动创建或复用同年级同名称的考试。</p>
+        <p><b>学校导出的成绩表可直接上传：</b>系统支持“科目 + 分数 / 校名次 / 班名次”的多级表头，原始名次列会被忽略，排名由系统按成绩重新计算。</p>
         <p style="margin-top: 10px; color: var(--ink-faint)">
           {{
             aiStatus?.enabled
@@ -107,7 +108,12 @@
     <div class="card mb-18">
       <div class="card-head">
         <h3>2. 确认考试信息与表头映射</h3>
-        <span class="chip mint">已识别第 {{ uploadResult.headerRow + 1 }} 行表头</span>
+        <span class="chip mint">
+          已识别第 {{ uploadResult.headerRow + 1
+          }}{{ (uploadResult.headerRows ?? 1) > 1
+            ? `–${uploadResult.headerRow + uploadResult.headerRows} 行`
+            : ' 行' }}表头
+        </span>
         <span class="chip" :class="aiApplied ? 'violet' : 'gray'">
           {{ aiBusy ? 'AI 识别中…' : aiApplied ? 'AI 识别结果' : '规则建议' }}
         </span>
@@ -659,18 +665,15 @@ function formatSize(size: number) {
   return `${(size / 1024 / 1024).toFixed(1)} MB`
 }
 
-function downloadTemplate() {
-  const subjects = context.subjects.map((subject) => subject.name)
-  const header = ['学号', '姓名', ...subjects].join(',')
-  const sample = ['20250001', '示例学生', ...subjects.map(() => '')].join(',')
-  const blob = new Blob([`\uFEFF${header}\n${sample}\n`], {
-    type: 'text/csv;charset=utf-8',
-  })
-  const link = document.createElement('a')
-  link.href = URL.createObjectURL(blob)
-  link.download = '成绩导入模板.csv'
-  link.click()
-  URL.revokeObjectURL(link.href)
+async function downloadTemplate() {
+  try {
+    busy.value = true
+    await api.downloadTemplate(classId.value || undefined)
+  } catch (err) {
+    error.value = err instanceof Error ? err.message : '模板下载失败'
+  } finally {
+    busy.value = false
+  }
 }
 
 onMounted(async () => {

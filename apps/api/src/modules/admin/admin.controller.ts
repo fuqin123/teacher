@@ -2,11 +2,13 @@ import {
   Body,
   ConflictException,
   Controller,
+  Delete,
   Get,
   HttpCode,
   Param,
   Patch,
   Post,
+  Put,
   Query,
   Req,
 } from '@nestjs/common'
@@ -30,6 +32,8 @@ import {
   subjectUpdateSchema,
   SubjectInput,
   SubjectUpdateInput,
+  aiSettingsInputSchema,
+  AiSettingsInput,
   termInputSchema,
   termUpdateSchema,
   TermInput,
@@ -73,6 +77,35 @@ export class AdminController {
     return this.wrap(() =>
       this.admin.assertAdmin(userId).then(() => this.admin.listStudents(classId || undefined)),
     )
+  }
+
+  @Get('ai-settings')
+  aiSettings(@CurrentUserId() userId: string) {
+    return this.wrap(() => this.admin.getAiSettings(userId))
+  }
+
+  @Put('ai-settings')
+  @HttpCode(200)
+  saveAiSettings(
+    @CurrentUserId() userId: string,
+    @Body(new ZodValidationPipe(aiSettingsInputSchema)) body: AiSettingsInput,
+    @Req() request: Request,
+  ) {
+    return this.wrap(() => this.admin.saveAiSettings(userId, body, request))
+  }
+
+  @Post('ai-settings/test')
+  @HttpCode(200)
+  testAiSettings(
+    @CurrentUserId() userId: string,
+    @Body() body: { baseUrl?: string; model?: string; apiKey?: string },
+  ) {
+    return this.wrap(() => this.admin.testAiSettings(userId, body ?? {}))
+  }
+
+  @Delete('ai-settings')
+  resetAiSettings(@CurrentUserId() userId: string, @Req() request: Request) {
+    return this.wrap(() => this.admin.resetAiSettings(userId, request))
   }
 
   @Post('terms')
