@@ -49,7 +49,7 @@ apps/
   web/    Vue 3 SPA
 packages/
   shared/ 前后端共享类型、Zod schema、纯函数
-docs/     项目架构、技术选型、功能清单
+docs/     项目架构、技术选型、功能清单、版本、开发与部署文档
 prototype/ 视觉原型
 ```
 
@@ -76,6 +76,7 @@ cp apps/api/.env.example apps/api/.env
 默认：
 
 ```env
+NODE_ENV="development"
 DATABASE_URL="postgresql://scorelens:scorelens@localhost:5432/scorelens?schema=public"
 SESSION_SECRET="change-me-to-a-long-random-string"
 APP_ORIGIN="http://localhost:5173"
@@ -161,38 +162,9 @@ pnpm db:studio      # Prisma Studio
 
 ## Ubuntu 24.04 测试部署
 
-1. 安装 Node.js 24、pnpm、Docker Engine + Compose 插件。
-2. 启动 PostgreSQL：`docker compose up -d postgres`。
-3. 复制并修改 `apps/api/.env`，设置数据库连接、`SESSION_SECRET`、`APP_ORIGIN`。
-4. 安装依赖并构建：
+当前实际部署方式为：Docker Compose 运行 PostgreSQL，systemd 运行 API，Caddy 托管 Web 静态文件并反向代理 `/api/*`。数据库默认只绑定 `127.0.0.1:5432`。
 
-```bash
-pnpm install
-pnpm build
-```
-
-5. 初始化数据库：
-
-```bash
-pnpm --filter @scorelens/api prisma:deploy
-pnpm db:seed   # 仅测试环境
-```
-
-6. 启动 API：`pnpm --filter @scorelens/api start`。
-7. 用 Caddy/Nginx 托管 `apps/web/dist`，将 `/api` 反向代理到 `127.0.0.1:3100`。
-8. 只对外暴露 80/443，数据库端口不要暴露公网。
-
-Caddy 示例：
-
-```caddyfile
-scorelens.example.com {
-  root * /srv/scorelens/web
-  encode gzip
-  try_files {path} /index.html
-  file_server
-  reverse_proxy /api/* 127.0.0.1:3100
-}
-```
+完整步骤、环境变量、systemd/Caddy 配置、备份恢复、升级回滚和故障排查见 [Ubuntu 24.04 部署文档](docs/06-部署文档.md)。
 
 ## 文档
 
@@ -200,6 +172,8 @@ scorelens.example.com {
 - [技术选型](docs/02-技术选型.md)
 - [功能清单](docs/03-功能清单.md)
 - [版本更新](docs/04-版本更新.md)
+- [开发记录](docs/05-开发记录.md)
+- [Ubuntu 24.04 部署文档](docs/06-部署文档.md)
 
 ## 版本
 
