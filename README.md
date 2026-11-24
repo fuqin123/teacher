@@ -2,16 +2,14 @@
 
 面向初中班主任、任课老师、年级主任的成绩导入与可视化分析系统。
 
-当前版本：**v0.2.0**。核心链路已打通：登录 → 班级范围 → 上传成绩表 → 手动映射 → 校验 → 事务入库 → 班级看板 / 年级对比 / 学生档案。
+当前版本：**v0.3.0**。核心链路已打通：登录 → 班级范围 → 上传成绩表 → 手动映射 → 校验 → 事务入库 → 班级看板 / 年级对比 / 学生档案。
 
-## v0.2.0 更新
+## v0.3.0 更新
 
-- 原生下拉全部替换为主题化 `AppSelect`：Teleport 浮层、搜索、键盘导航、勾选状态，弹层在触发框下方对齐，不再遮挡按钮。
-- 内容区最大宽度从 1320px 调整为 1600px，左右留白收敛到 24px。
-- 图表封装统一入场动画：柱状 900ms 逐柱生长、曲线 1200ms 绘制、雷达 1000ms 外扩；数据切换 650ms 形变。
-- 修复 ResizeObserver 首次回调触发 `resize()` 导致入场动画被吞掉的问题；图表初始化期间显示骨架。
-- 学生列表新增可搜索“快速定位学生”下拉，支持姓名 / 学号 / 班级过滤。
-- 支持 `prefers-reduced-motion`，系统减弱动效时关闭图表动画。
+- Ubuntu 24.04 可通过 Docker Compose 直接部署 PostgreSQL、NestJS API 和 Vue Web/Caddy，宿主机无需安装 Node.js、pnpm、PostgreSQL 或 Caddy。
+- API、Web 增加多阶段 Docker 镜像；API 启动自动执行 Prisma 迁移，上传文件、数据库和 Caddy 证书均使用持久化卷。
+- 增加 API/Web 健康检查、根目录部署环境变量模板和 `COOKIE_SECURE` 配置，兼容 HTTPS 生产与隔离 HTTP 测试。
+- 部署文档补齐安装、HTTPS、备份恢复、升级回滚、故障排查和安全上线清单。
 
 ## 已实现
 
@@ -39,7 +37,7 @@
 - 前端：Vue 3 + TypeScript + Vite + Pinia + Vue Query + ECharts
 - 后端：NestJS + Prisma + PostgreSQL + Zod
 - 表格：SheetJS 读取，后续使用 exceljs 导出
-- 部署：Docker Compose（PostgreSQL）+ Caddy/Nginx（静态站点）
+- 部署：Docker Compose（PostgreSQL + NestJS API + Vue Web/Caddy）
 
 ## 目录
 
@@ -50,6 +48,7 @@ apps/
 packages/
   shared/ 前后端共享类型、Zod schema、纯函数
 docs/     项目架构、技术选型、功能清单、版本、开发与部署文档
+docker/    Caddy 容器配置
 prototype/ 视觉原型
 ```
 
@@ -80,6 +79,7 @@ NODE_ENV="development"
 DATABASE_URL="postgresql://scorelens:scorelens@localhost:5432/scorelens?schema=public"
 SESSION_SECRET="change-me-to-a-long-random-string"
 APP_ORIGIN="http://localhost:5173"
+COOKIE_SECURE="false"
 PORT=3100
 UPLOAD_DIR="./data/uploads"
 TZ="Asia/Shanghai"
@@ -160,11 +160,20 @@ pnpm db:studio      # Prisma Studio
 - 0 是有效成绩，不视为缺考。
 - 单文件 ≤ 10MB、≤ 5000 行。
 
-## Ubuntu 24.04 测试部署
+## Docker 一键部署（Ubuntu 24.04）
 
-当前实际部署方式为：Docker Compose 运行 PostgreSQL，systemd 运行 API，Caddy 托管 Web 静态文件并反向代理 `/api/*`。数据库默认只绑定 `127.0.0.1:5432`。
+宿主机只需安装 Docker Engine 和 Docker Compose 插件，无需安装 Node.js、pnpm、PostgreSQL 或 Caddy。
 
-完整步骤、环境变量、systemd/Caddy 配置、备份恢复、升级回滚和故障排查见 [Ubuntu 24.04 部署文档](docs/06-部署文档.md)。
+```bash
+cp .env.example .env
+# 修改 .env 中的密码、SESSION_SECRET、APP_ORIGIN 和 SITE_ADDRESS
+docker compose up -d --build
+docker compose ps
+```
+
+Compose 会启动 PostgreSQL、NestJS API 和 Caddy Web 三个容器；API 启动时自动执行 Prisma 迁移。默认数据库只绑定 `127.0.0.1:5432`，API 不发布宿主机端口。
+
+完整安装、HTTPS、演示数据、备份恢复、升级回滚和故障排查见 [Ubuntu Docker 部署文档](docs/06-部署文档.md)。
 
 ## 文档
 
@@ -173,9 +182,10 @@ pnpm db:studio      # Prisma Studio
 - [功能清单](docs/03-功能清单.md)
 - [版本更新](docs/04-版本更新.md)
 - [开发记录](docs/05-开发记录.md)
-- [Ubuntu 24.04 部署文档](docs/06-部署文档.md)
+- [Ubuntu Docker 部署文档](docs/06-部署文档.md)
 
 ## 版本
 
+- `v0.3.0`：Ubuntu Docker Compose 全栈部署、自动迁移、健康检查、HTTPS/Cookie 配置与运维文档。
 - `v0.2.0`：主题化可搜索下拉、内容区留白优化、图表入场/切换动画、学生快速定位。
 - `v0.1.0`：脚手架 + 手动映射导入 + 班级看板 + 年级对比 + 学生档案 + 导入历史。

@@ -14,6 +14,7 @@ async function bootstrap() {
 
   const pool = new Pool({ connectionString: config.getOrThrow<string>('DATABASE_URL') })
   const PgSession = connectPgSimple(session)
+  const cookieSecure = config.get<string>('COOKIE_SECURE')
 
   app.set('trust proxy', 1)
   app.use(
@@ -30,7 +31,10 @@ async function bootstrap() {
       cookie: {
         httpOnly: true,
         sameSite: 'lax',
-        secure: config.get<string>('NODE_ENV') === 'production',
+        secure:
+          cookieSecure === undefined
+            ? config.get<string>('NODE_ENV') === 'production'
+            : cookieSecure === 'true',
         maxAge: 8 * 60 * 60 * 1000,
       },
     }),

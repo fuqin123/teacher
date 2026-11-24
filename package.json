@@ -1,6 +1,6 @@
 {
   "name": "scorelens",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "private": true,
   "packageManager": "pnpm@12.4.1",
   "scripts": {
@@ -9,7 +9,7 @@
     "build": "pnpm build:shared && pnpm --filter @scorelens/api build && pnpm --filter @scorelens/web build",
     "typecheck": "pnpm build:shared && pnpm --filter @scorelens/api typecheck && pnpm --filter @scorelens/web typecheck",
     "db:up": "docker compose up -d postgres",
-    "db:down": "docker compose down",
+    "db:down": "docker compose stop postgres",
     "db:migrate": "pnpm --filter @scorelens/api prisma:migrate",
     "db:seed": "pnpm --filter @scorelens/api prisma:seed",
     "db:studio": "pnpm --filter @scorelens/api prisma:studio"

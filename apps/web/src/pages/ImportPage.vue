@@ -82,7 +82,7 @@
     <div class="card">
       <div class="card-head">
         <h3>导入说明</h3>
-        <span class="chip blue">v0.2.0 手动映射</span>
+        <span class="chip blue">v0.3.0 手动映射</span>
       </div>
       <div style="padding: 16px 24px 22px; font-size: 13px; color: var(--ink-2); line-height: 1.9">
         <p><b>标准宽表：</b>一行一个学生，包含学号、姓名和各科成绩列。</p>
