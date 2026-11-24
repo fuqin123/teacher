@@ -132,6 +132,14 @@ pnpm --filter @scorelens/api dev
 pnpm --filter @scorelens/web dev
 ```
 
+## 访问方式（内网 IP + HTTP，推荐）
+
+学校内网部署不需要证书，统一用 HTTP 访问即可：`.env` 设 `SITE_ADDRESS=":80"`、`COOKIE_SECURE="false"`、`HTTP_PORT` 为实际端口，浏览器打开 `http://<服务器IP>:<端口>`。详见 [部署文档 9.2](docs/06-部署文档.md)。
+
+若浏览器把地址自动升级成 `https://` 并提示不安全，按 [17.2](docs/06-部署文档.md) 关闭 Chrome 的「始终使用安全连接」并清理该站点的 HSTS 记录。
+
+需要 HTTPS 时只有两条可行路径：公网域名 + 自动证书（9.1），或内网主机名 + Caddy 内部 CA 并在每台电脑导入根证书（9.3）。
+
 ## 演示账号
 
 | 角色 | 账号 | 密码 | 数据范围 |
