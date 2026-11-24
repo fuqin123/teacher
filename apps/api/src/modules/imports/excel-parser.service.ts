@@ -16,11 +16,15 @@ interface SubjectHint {
 
 @Injectable()
 export class ExcelParserService {
-  parse(buffer: Buffer, subjects: SubjectHint[]): {
+  parse(
+    buffer: Buffer,
+    subjects: SubjectHint[],
+    extension = '',
+  ): {
     parsed: ParsedWorkbookData
     suggestions: ImportSuggestion[]
   } {
-    const workbook = XLSX.read(buffer, { type: 'buffer', cellDates: false, raw: true })
+    const workbook = this.readWorkbook(buffer, extension)
     const sheetName = workbook.SheetNames[0]
     if (!sheetName) throw new Error('文件中没有可读取的工作表')
 
@@ -78,6 +82,43 @@ export class ExcelParserService {
     if (value === null || value === undefined) return ''
     if (value instanceof Date) return value.toISOString().slice(0, 10)
     return String(value).trim()
+  }
+
+  /**
+   * CSV 由 SheetJS 直接读 buffer 时会按单字节编码解释，WPS / Excel 导出的中文表头会变成乱码。
+   * 这里先自行判断编码（BOM → UTF-8 → GBK），再交给 SheetJS 解析；xlsx/xls 仍走二进制读取。
+   */
+  private readWorkbook(buffer: Buffer, extension: string) {
+    if (extension !== '.csv') {
+      return XLSX.read(buffer, { type: 'buffer', cellDates: false, raw: true })
+    }
+    return XLSX.read(this.decodeText(buffer), {
+      type: 'string',
+      cellDates: false,
+      raw: true,
+    })
+  }
+
+  private decodeText(buffer: Buffer): string {
+    if (buffer.length >= 3 && buffer[0] === 0xef && buffer[1] === 0xbb && buffer[2] === 0xbf) {
+      return new TextDecoder('utf-8').decode(buffer.subarray(3))
+    }
+    if (buffer.length >= 2 && buffer[0] === 0xff && buffer[1] === 0xfe) {
+      return new TextDecoder('utf-16le').decode(buffer.subarray(2))
+    }
+    return (
+      this.tryDecode(buffer, 'utf-8') ??
+      this.tryDecode(buffer, 'gbk') ??
+      new TextDecoder('utf-8').decode(buffer)
+    )
+  }
+
+  private tryDecode(buffer: Buffer, encoding: string): string | null {
+    try {
+      return new TextDecoder(encoding, { fatal: true }).decode(buffer)
+    } catch {
+      return null
+    }
   }
 
   private detectHeaderRow(rows: string[][], subjects: SubjectHint[]): number {

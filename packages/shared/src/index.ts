@@ -65,6 +65,203 @@ export function parseSubjectTarget(target: string): string | null {
     : null
 }
 
+/* ------------------------------------------------------------------ */
+/* AI 表头识别                                                         */
+/* ------------------------------------------------------------------ */
+
+export const AI_MAPPING_TARGETS = ['student_no', 'name', 'ignore'] as const
+
+/**
+ * AI 返回的结构，服务端必须先用该 schema 校验，再合并到映射中。
+ * AI 只负责结构识别（列含义、考试元信息、科目满分），不参与任何分数计算。
+ */
+export const aiMappingResponseSchema = z.object({
+  columns: z
+    .array(
+      z.object({
+        index: z.number().int().min(0),
+        target: z.string().min(1),
+        confidence: z.enum(['high', 'medium', 'low']).optional(),
+      }),
+    )
+    .default([]),
+  exam: z
+    .object({
+      name: z.string().trim().min(1).max(120).optional(),
+      type: z.enum(examTypes).optional(),
+      heldAt: z
+        .string()
+        .regex(/^\d{4}-\d{2}-\d{2}$/)
+        .optional(),
+    })
+    .optional(),
+  subjects: z
+    .array(
+      z.object({
+        subjectId: z.string().min(1),
+        fullScore: z.number().positive().max(1000).optional(),
+        includedInTotal: z.boolean().optional(),
+      }),
+    )
+    .default([]),
+  notes: z.string().max(500).optional(),
+})
+export type AiMappingResponse = z.infer<typeof aiMappingResponseSchema>
+
+export interface AiStatusResponse {
+  enabled: boolean
+  model: string | null
+  endpointHost: string | null
+}
+
+export interface AiSuggestResponse {
+  enabled: boolean
+  applied: boolean
+  model: string | null
+  notes: string | null
+  message: string | null
+  columns: ImportSuggestion[]
+  exam: {
+    name: string
+    type: ExamType
+    heldAt: string
+  } | null
+  subjects: Array<{
+    subjectId: string
+    fullScore: number
+    includedInTotal: boolean
+  }>
+}
+
+/* ------------------------------------------------------------------ */
+/* 基础数据维护（仅管理员）                                             */
+/* ------------------------------------------------------------------ */
+
+const optionalDate = z
+  .string()
+  .regex(/^\d{4}-\d{2}-\d{2}$/, '日期格式应为 YYYY-MM-DD')
+  .optional()
+  .nullable()
+
+export const termInputSchema = z.object({
+  schoolYear: z
+    .string()
+    .trim()
+    .regex(/^\d{4}-\d{4}$/, '学年格式应为 2026-2027')
+    .refine((value) => {
+      const [start, end] = value.split('-').map(Number)
+      return end === start + 1
+    }, '学年结束年份需比开始年份大 1'),
+  termNo: z.number().int().min(1, '学期序号至少为 1').max(3, '学期序号最多为 3'),
+  name: z.string().trim().min(1, '请填写学期名称').max(60),
+  startDate: optionalDate,
+  endDate: optionalDate,
+  isCurrent: z.boolean().optional(),
+})
+export type TermInput = z.infer<typeof termInputSchema>
+
+export const termUpdateSchema = termInputSchema.partial()
+export type TermUpdateInput = z.infer<typeof termUpdateSchema>
+
+export const gradeInputSchema = z.object({
+  termId: z.string().min(1, '请选择学期'),
+  level: z.number().int().min(1, '年级层次最小为 1').max(9, '年级层次最大为 9'),
+  entryYear: z.number().int().min(1990).max(2100),
+  name: z.string().trim().min(1, '请填写年级名称').max(20),
+})
+export type GradeInput = z.infer<typeof gradeInputSchema>
+
+export const gradeUpdateSchema = gradeInputSchema.partial()
+export type GradeUpdateInput = z.infer<typeof gradeUpdateSchema>
+
+export const subjectInputSchema = z.object({
+  code: z
+    .string()
+    .trim()
+    .min(1, '请填写科目代码')
+    .max(30)
+    .regex(/^[a-z0-9_]+$/, '科目代码只能包含小写字母、数字和下划线'),
+  name: z.string().trim().min(1, '请填写科目名称').max(20),
+  category: z.enum(['cultural', 'other']).default('cultural'),
+  defaultFullScore: z.number().positive().max(1000).optional().nullable(),
+  isActive: z.boolean().optional(),
+  sortOrder: z.number().int().min(0).max(99).optional(),
+})
+export type SubjectInput = z.infer<typeof subjectInputSchema>
+
+export const subjectUpdateSchema = subjectInputSchema.partial()
+export type SubjectUpdateInput = z.infer<typeof subjectUpdateSchema>
+
+export const classInputSchema = z.object({
+  gradeId: z.string().min(1, '请选择所属年级'),
+  name: z.string().trim().min(1, '请填写班级名称').max(30),
+  classGroupName: z.string().trim().min(1, '请填写班级组名称').max(40),
+  headTeacherId: z.string().optional().nullable(),
+  sortOrder: z.number().int().min(0).max(99).optional(),
+})
+export type ClassInput = z.infer<typeof classInputSchema>
+
+export const classUpdateSchema = classInputSchema.partial()
+export type ClassUpdateInput = z.infer<typeof classUpdateSchema>
+
+export const studentInputSchema = z.object({
+  studentNo: z.string().trim().min(1, '请填写学号').max(30),
+  name: z.string().trim().min(1, '请填写姓名').max(30),
+  classId: z.string().min(1, '请选择班级'),
+  status: z.enum(['active', 'graduated', 'left']).optional(),
+})
+export type StudentInput = z.infer<typeof studentInputSchema>
+
+export const studentUpdateSchema = studentInputSchema.partial().omit({ classId: true })
+export type StudentUpdateInput = z.infer<typeof studentUpdateSchema>
+
+export const enrollmentInputSchema = z.object({
+  classId: z.string().min(1, '请选择班级'),
+  termId: z.string().optional(),
+})
+export type EnrollmentInput = z.infer<typeof enrollmentInputSchema>
+
+export interface AdminTermRow extends TermOption {
+  startDate: string | null
+  endDate: string | null
+}
+
+export interface AdminGradeRow {
+  id: string
+  termId: string
+  termName: string
+  entryYear: number
+  level: number
+  name: string
+  classCount: number
+}
+
+export interface AdminClassRow extends ClassOption {
+  headTeacherId: string | null
+}
+
+export interface AdminSubjectRow extends SubjectOption {
+  isActive: boolean
+}
+
+export interface AdminStudentRow {
+  id: string
+  studentNo: string
+  name: string
+  status: 'active' | 'graduated' | 'left'
+  classId: string | null
+  className: string | null
+  termId: string | null
+}
+
+export interface TeacherOption {
+  id: string
+  displayName: string
+  username: string
+  roles: RoleCode[]
+}
+
+
 export function isAbsentMarker(value: unknown): boolean {
   if (typeof value !== 'string') return false
   return ABSENT_MARKERS.includes(value.trim() as (typeof ABSENT_MARKERS)[number])

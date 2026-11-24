@@ -82,7 +82,9 @@
     <div class="card">
       <div class="card-head">
         <h3>导入说明</h3>
-        <span class="chip blue">v0.4.0 手动映射</span>
+        <span class="chip" :class="aiStatus?.enabled ? 'violet' : 'gray'">
+          {{ aiStatus?.enabled ? `AI 识别已启用 · ${aiStatus.model}` : '规则建议 + 人工确认' }}
+        </span>
       </div>
       <div style="padding: 16px 24px 22px; font-size: 13px; color: var(--ink-2); line-height: 1.9">
         <p><b>标准宽表：</b>一行一个学生，包含学号、姓名和各科成绩列。</p>
@@ -90,7 +92,11 @@
         <p><b>学号：</b>必须是本班名单中的学号；数字 0 是有效成绩。</p>
         <p><b>考试记录：</b>下一步填写考试名称、类型与日期，入库时会自动创建或复用同年级同名称的考试。</p>
         <p style="margin-top: 10px; color: var(--ink-faint)">
-          当前版本不包含 AI 表头识别，列映射由规则建议 + 人工确认完成。
+          {{
+            aiStatus?.enabled
+              ? '上传后由 AI 识别各列含义与考试信息，识别结果会先填入映射表，仍需人工确认；AI 只判断结构，不读取也不改写任何分数。'
+              : '当前未启用 AI 识别：列映射由规则建议 + 人工确认完成。配置 AI_ENABLED 与 AI_API_KEY 后可启用。'
+          }}
         </p>
       </div>
     </div>
@@ -102,9 +108,28 @@
       <div class="card-head">
         <h3>2. 确认考试信息与表头映射</h3>
         <span class="chip mint">已识别第 {{ uploadResult.headerRow + 1 }} 行表头</span>
+        <span class="chip" :class="aiApplied ? 'violet' : 'gray'">
+          {{ aiBusy ? 'AI 识别中…' : aiApplied ? 'AI 识别结果' : '规则建议' }}
+        </span>
         <div class="right">
+          <button
+            v-if="aiStatus?.enabled && !aiBusy"
+            class="btn ghost sm"
+            style="margin-right: 8px"
+            @click="runAiSuggest"
+          >
+            重新 AI 识别
+          </button>
           <span class="hint">{{ uploadResult.fileName }} · {{ uploadResult.rowCount }} 行数据</span>
         </div>
+      </div>
+
+      <div v-if="aiMessage" class="warn-panel" style="margin: 12px 24px 0">
+        {{ aiMessage }}
+      </div>
+      <div v-else-if="aiApplied && aiNotes" class="page-note" style="margin: 12px 24px 0">
+        <AppIcon name="info" />
+        AI 说明：{{ aiNotes }}
       </div>
 
       <div style="padding: 16px 24px 4px">
@@ -321,9 +346,11 @@ import {
   examTypes,
   parseSubjectTarget,
   subjectTarget,
+  type AiStatusResponse,
   type ExamType,
   type ImportCommitResponse,
   type ImportMappingInput,
+  type ImportSuggestion,
   type ImportValidationResponse,
   type ParsedImportResponse,
 } from '@scorelens/shared'
@@ -344,6 +371,12 @@ const validation = ref<ImportValidationResponse | null>(null)
 const commitResult = ref<ImportCommitResponse | null>(null)
 const busy = ref(false)
 const error = ref('')
+const aiStatus = ref<AiStatusResponse | null>(null)
+const aiBusy = ref(false)
+const aiApplied = ref(false)
+const aiNotes = ref('')
+const aiMessage = ref('')
+const aiColumns = ref<ImportSuggestion[]>([])
 const mappingColumns = ref<Array<{ index: number; target: string }>>([])
 const subjectConfigs = ref<Record<string, { fullScore: number; includedInTotal: boolean }>>({})
 const examForm = reactive<{ name: string; type: string; heldAt: string }>({
@@ -469,10 +502,63 @@ async function upload() {
     examForm.name = result.fileName.replace(/\.[^.]+$/, '') || '期中考试'
     examForm.type = 'midterm'
     step.value = 2
+    if (aiStatus.value?.enabled) void runAiSuggest()
   } catch (err) {
     error.value = err instanceof Error ? err.message : '文件解析失败'
   } finally {
     busy.value = false
+  }
+}
+
+/** 调用 AI 识别表头，并把结果合并进当前映射（AI 结果优先，未识别的列保留规则建议）。 */
+async function runAiSuggest() {
+  if (!uploadResult.value || aiBusy.value) return
+  aiBusy.value = true
+  aiMessage.value = ''
+  try {
+    const result = await api.suggestImportMapping(uploadResult.value.batchId)
+    if (!result.enabled) {
+      aiMessage.value = result.message ?? 'AI 表头识别未启用'
+      return
+    }
+    if (result.columns.length === 0) {
+      aiMessage.value = result.message ?? 'AI 未给出可用映射，已保留规则建议'
+      return
+    }
+
+    const subjectIds = new Set(context.subjects.map((subject) => subject.id))
+    for (const column of result.columns) {
+      const row = mappingColumns.value.find((item) => item.index === column.index)
+      if (!row) continue
+      if (column.target === 'student_no' || column.target === 'name' || column.target === 'ignore') {
+        row.target = column.target
+        continue
+      }
+      const subjectId = parseSubjectTarget(column.target)
+      if (subjectId && subjectIds.has(subjectId)) row.target = column.target
+    }
+
+    if (result.exam) {
+      if (result.exam.name) examForm.name = result.exam.name
+      examForm.type = result.exam.type
+      examForm.heldAt = result.exam.heldAt
+    }
+    for (const item of result.subjects) {
+      const config = subjectConfigs.value[item.subjectId]
+      if (!config) continue
+      config.fullScore = item.fullScore
+      config.includedInTotal = item.includedInTotal
+    }
+
+    aiColumns.value = result.columns
+    aiApplied.value = true
+    aiNotes.value = result.notes ?? ''
+    aiMessage.value = ''
+  } catch (err) {
+    aiMessage.value =
+      err instanceof Error ? err.message : 'AI 识别失败，已保留规则建议'
+  } finally {
+    aiBusy.value = false
   }
 }
 
@@ -537,6 +623,10 @@ function restart() {
   commitResult.value = null
   mappingColumns.value = []
   subjectConfigs.value = {}
+  aiApplied.value = false
+  aiNotes.value = ''
+  aiMessage.value = ''
+  aiColumns.value = []
   error.value = ''
   if (fileInput.value) fileInput.value.value = ''
 }
@@ -546,6 +636,8 @@ function openDashboard() {
 }
 
 function suggestionFor(index: number) {
+  const aiColumn = aiColumns.value.find((item) => item.index === index)
+  if (aiColumn) return aiColumn
   return uploadResult.value?.suggestions.find((item) => item.index === index)
 }
 
@@ -581,7 +673,12 @@ function downloadTemplate() {
   URL.revokeObjectURL(link.href)
 }
 
-onMounted(() => {
-  if (!context.loaded) void context.load()
+onMounted(async () => {
+  if (!context.loaded) await context.load()
+  try {
+    aiStatus.value = await api.getAiStatus()
+  } catch {
+    aiStatus.value = null
+  }
 })
 </script>

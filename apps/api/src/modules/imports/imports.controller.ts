@@ -27,9 +27,24 @@ export class ImportsController {
     return this.imports.list(userId)
   }
 
+  @Get('ai-status')
+  aiStatus() {
+    return this.imports.aiStatus()
+  }
+
   @Get(':id')
   detail(@CurrentUserId() userId: string, @Param('id') id: string) {
     return this.imports.detail(userId, id)
+  }
+
+  @Post(':id/ai-suggest')
+  @HttpCode(200)
+  aiSuggest(
+    @CurrentUserId() userId: string,
+    @Param('id') id: string,
+    @Req() request: Request,
+  ) {
+    return this.imports.aiSuggest(userId, id, request)
   }
 
   @Post()

@@ -18,6 +18,9 @@ import {
   ParsedImportResponse,
   parseSubjectTarget,
   normalizeHeader,
+  AiStatusResponse,
+  AiSuggestResponse,
+  ExamType,
 } from '@scorelens/shared'
 import { Request } from 'express'
 import { PrismaService } from '../../prisma/prisma.service'
@@ -25,6 +28,7 @@ import { AccessService } from '../../access/access.service'
 import { AuditService } from '../../audit/audit.service'
 import { ExcelParserService } from './excel-parser.service'
 import { ImportValidatorService } from './import-validator.service'
+import { AiMappingService } from './ai-mapping.service'
 import {
   ImportMappingConfig,
   ParsedWorkbookData,
@@ -41,6 +45,7 @@ export class ImportsService {
     private readonly audit: AuditService,
     private readonly parser: ExcelParserService,
     private readonly validator: ImportValidatorService,
+    private readonly ai: AiMappingService,
     private readonly config: ConfigService,
   ) {}
 
@@ -70,7 +75,7 @@ export class ImportsService {
 
     let parsedResult: ReturnType<ExcelParserService['parse']>
     try {
-      parsedResult = this.parser.parse(file.buffer, subjects)
+      parsedResult = this.parser.parse(file.buffer, subjects, extension)
     } catch (error) {
       throw new BadRequestException(
         error instanceof Error ? error.message : '文件解析失败',
@@ -122,6 +127,125 @@ export class ImportsService {
       suggestions,
       status: 'parsed',
     }
+  }
+
+  aiStatus(): AiStatusResponse {
+    return this.ai.status()
+  }
+
+  /**
+   * 调用 OpenAI 兼容接口识别表头结构。
+   * 只回传“列含义 + 考试元信息 + 科目满分建议”，分数仍由人工确认后按原单元格读取。
+   */
+  async aiSuggest(
+    userId: string,
+    batchId: string,
+    request: Request,
+  ): Promise<AiSuggestResponse> {
+    const status = this.ai.status()
+    const batch = await this.getEditableBatch(userId, batchId)
+    const parsed = batch.parsedDataJson as unknown as ParsedWorkbookData
+    if (!parsed) throw new BadRequestException('导入批次缺少解析数据')
+
+    if (!status.enabled) {
+      return {
+        enabled: false,
+        applied: false,
+        model: status.model,
+        notes: null,
+        message: 'AI 表头识别未启用，请在环境变量中配置 AI_ENABLED 与 AI_API_KEY',
+        columns: [],
+        exam: null,
+        subjects: [],
+      }
+    }
+
+    const classInfo = await this.access.assertClassAccess(userId, batch.classId!)
+    const subjects = await this.prisma.subject.findMany({
+      where: { isActive: true },
+      select: { id: true, name: true, code: true, defaultFullScore: true },
+      orderBy: [{ sortOrder: 'asc' }, { name: 'asc' }],
+    })
+
+    const outcome = await this.ai.suggest({
+      fileName: batch.fileName,
+      sheetName: parsed.sheetName,
+      headers: parsed.headers,
+      samples: this.maskSamples(parsed.samples),
+      subjects: subjects.map((subject) => ({
+        id: subject.id,
+        name: subject.name,
+        code: subject.code,
+        defaultFullScore:
+          subject.defaultFullScore === null ? null : Number(subject.defaultFullScore),
+      })),
+      gradeName: classInfo.grade.name,
+      className: classInfo.name,
+    })
+
+    await this.audit.log({
+      actorId: userId,
+      action: 'import.ai_suggest',
+      entityType: 'import_batch',
+      entityId: batch.id,
+      detail: {
+        model: outcome.model,
+        columns: outcome.columns.length,
+        applied: Boolean(outcome.mapping),
+        usage: outcome.usage,
+        message: outcome.message,
+      },
+      request,
+    })
+
+    const examMeta = outcome.mapping?.exam
+    const examName = examMeta?.name?.trim()
+    const heldAtValid = /^\d{4}-\d{2}-\d{2}$/.test(examMeta?.heldAt ?? '')
+    const subjectDefaults = new Map(
+      subjects.map((subject) => [
+        subject.id,
+        subject.defaultFullScore === null ? 100 : Number(subject.defaultFullScore),
+      ]),
+    )
+
+    return {
+      enabled: true,
+      applied: Boolean(outcome.mapping && outcome.columns.length > 0),
+      model: outcome.model,
+      notes: outcome.mapping?.notes ?? null,
+      message: outcome.message,
+      columns: outcome.columns,
+      exam: examName
+        ? {
+            name: examName,
+            type: (examMeta?.type ?? 'other') as ExamType,
+            heldAt: heldAtValid
+              ? (examMeta!.heldAt as string)
+              : new Date().toISOString().slice(0, 10),
+          }
+        : null,
+      subjects: (outcome.mapping?.subjects ?? []).map((item) => ({
+        subjectId: item.subjectId,
+        fullScore: item.fullScore ?? subjectDefaults.get(item.subjectId) ?? 100,
+        includedInTotal: item.includedInTotal ?? true,
+      })),
+    }
+  }
+
+  /**
+   * 样例脱敏：姓名替换为“学生”，长数字学号保留前 4 位，分数与缺考标记保持原样，
+   * 让模型仍能区分“文本列 / 编号列 / 数值列”，但不发送完整姓名与学号。
+   */
+  private maskSamples(samples: string[][]): string[][] {
+    return samples.slice(0, 3).map((row) =>
+      row.map((cell) => {
+        const value = String(cell ?? '').trim()
+        if (!value) return ''
+        if (/^[\u4e00-\u9fa5·]{2,4}$/.test(value)) return '学生'
+        if (/^\d{6,}$/.test(value)) return `${value.slice(0, 4)}****`
+        return value
+      }),
+    )
   }
 
   async saveMapping(

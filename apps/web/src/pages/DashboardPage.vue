@@ -124,18 +124,24 @@
       </div>
     </div>
 
-    <div class="grid-2-even">
-      <div class="card">
+    <div class="grid-2-even dashboard-bottom">
+      <div class="card chart-card">
         <div class="card-head">
           <h3>{{ data.distribution.subjectName }} 分数段分布</h3>
           <span class="chip blue">10 分一段</span>
+          <div class="right">
+            <span class="hint">满分 {{ data.distribution.fullScore }} 分</span>
+          </div>
         </div>
-        <div class="chart-box">
-          <EChart :option="distributionChart" height="280px" />
+        <div class="chart-box fill">
+          <EChart :option="distributionChart" height="100%" />
+        </div>
+        <div class="card-foot-note">
+          共 {{ distributionTotal }} 人次参与分段 · 缺考不计入 · 区间左闭右开
         </div>
       </div>
 
-      <div class="card">
+      <div class="card chart-card">
         <div class="card-head">
           <h3>临界生提醒</h3>
           <span class="chip amber">±5 分内</span>
@@ -143,7 +149,7 @@
             <span class="hint">共 {{ data.borderline.length }} 人次</span>
           </div>
         </div>
-        <div class="table-wrap" style="padding-top: 4px">
+        <div class="table-wrap borderline-wrap">
           <table>
             <thead>
               <tr>
@@ -288,15 +294,22 @@ const chartBase = {
 
 const subjectChart = computed(() => {
   const subjects = data.value?.subjects ?? []
+  const crowded = subjects.length > 6
   return {
     ...chartBase,
     tooltip: { trigger: 'axis' },
     legend: { top: 4, right: 8, itemWidth: 12, itemHeight: 8, textStyle: { color: '#475569', fontSize: 11 } },
-    grid: { left: 42, right: 18, top: 38, bottom: 28 },
+    grid: { left: 42, right: 18, top: 38, bottom: crowded ? 46 : 30 },
     xAxis: {
       type: 'category',
       data: subjects.map((subject) => subject.subjectName),
-      axisLabel: { color: '#94A3B8', fontSize: 11 },
+      axisLabel: {
+        color: '#94A3B8',
+        fontSize: 11,
+        interval: 0,
+        rotate: crowded ? 30 : 0,
+        margin: 10,
+      },
       axisLine: { lineStyle: { color: '#E8EDF4' } },
       axisTick: { show: false },
     },
@@ -376,21 +389,31 @@ const trendChart = computed(() => {
 
 const distributionChart = computed(() => {
   const bins = data.value?.distribution.bins ?? []
+  const crowded = bins.length > 8
   return {
     ...chartBase,
     tooltip: { trigger: 'axis' },
-    grid: { left: 38, right: 18, top: 18, bottom: 28 },
+    grid: { left: 44, right: 20, top: 34, bottom: crowded ? 52 : 36 },
     xAxis: {
       type: 'category',
       data: bins.map((bin) => bin.label),
-      axisLabel: { color: '#94A3B8', fontSize: 10, interval: 0, rotate: bins.length > 10 ? 35 : 0 },
+      axisLabel: {
+        color: '#94A3B8',
+        fontSize: 10,
+        interval: 0,
+        // 段数多时斜排，并留足底部空间，避免刻度文字被裁掉
+        rotate: crowded ? 30 : 0,
+        margin: 10,
+      },
       axisLine: { lineStyle: { color: '#E8EDF4' } },
       axisTick: { show: false },
     },
     yAxis: {
       type: 'value',
       name: '人数',
-      nameTextStyle: { color: '#94A3B8', fontSize: 10 },
+      nameGap: 14,
+      nameTextStyle: { color: '#94A3B8', fontSize: 10, align: 'right' },
+      minInterval: 1,
       axisLabel: { color: '#94A3B8', fontSize: 11 },
       splitLine: { lineStyle: { color: '#F1F5F9' } },
     },
@@ -398,12 +421,23 @@ const distributionChart = computed(() => {
       {
         type: 'bar',
         barWidth: 14,
+        barMaxWidth: 22,
         data: bins.map((bin) => bin.count),
         itemStyle: { color: '#3B7CFF', borderRadius: [5, 5, 0, 0] },
+        label: {
+          show: bins.length <= 14,
+          position: 'top',
+          color: '#64748B',
+          fontSize: 10,
+        },
       },
     ],
   }
 })
+
+const distributionTotal = computed(() =>
+  (data.value?.distribution.bins ?? []).reduce((sum, bin) => sum + bin.count, 0),
+)
 
 function scoreText(value: number | null | undefined, digits = 1) {
   if (value === null || value === undefined) return '—'

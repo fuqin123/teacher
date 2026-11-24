@@ -12,12 +12,17 @@ const studentNames = [
   '卢诗琪', '姜宇航',
 ]
 
+// 湖南初中（八年级）常见科目与卷面满分：语文/数学/英语 120，其余文化科目 100。
+// 满分仍可在每场考试中单独调整，这里只作为新增考试时的默认值。
 const subjectSeed = [
   { code: 'chinese', name: '语文', fullScore: 120, sortOrder: 1 },
-  { code: 'math', name: '数学', fullScore: 150, sortOrder: 2 },
+  { code: 'math', name: '数学', fullScore: 120, sortOrder: 2 },
   { code: 'english', name: '英语', fullScore: 120, sortOrder: 3 },
   { code: 'physics', name: '物理', fullScore: 100, sortOrder: 4 },
-  { code: 'history', name: '历史', fullScore: 100, sortOrder: 5 },
+  { code: 'politics', name: '道德与法治', fullScore: 100, sortOrder: 5 },
+  { code: 'history', name: '历史', fullScore: 100, sortOrder: 6 },
+  { code: 'biology', name: '生物', fullScore: 100, sortOrder: 7 },
+  { code: 'geography', name: '地理', fullScore: 100, sortOrder: 8 },
 ]
 
 const examSeed = [
@@ -238,7 +243,7 @@ async function main() {
   }
 
   const absenceSet = new Set(['2:5:4', '1:20:3', '0:28:1'])
-  const subjectOffsets = [0.02, 0.04, 0.01, -0.01, -0.03]
+  const subjectOffsets = [0.02, 0.04, 0.01, -0.01, -0.03, 0.005, -0.02, 0.015]
   const examOffsets = [0, 0.012, 0.025]
   const scoreRows: Array<{
     examId: string

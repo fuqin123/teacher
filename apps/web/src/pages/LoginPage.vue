@@ -18,17 +18,17 @@
         <div>
           <h1>让每一次考试<br /><span>都能被读懂</span></h1>
           <p>
-            上传成绩表，自动完成班级、年级与学生维度的分析。
-            数据进入统一模型，排名、趋势、偏科与临界生一目了然。
+            面向湖南初中的成绩分析工作台。上传成绩表后自动完成班级、年级与学生维度的分析，
+            排名、趋势、偏科与临界生一目了然。
           </p>
           <div class="login-features">
-            <div class="login-feature"><span class="dot" />成绩表手动映射导入，校验后事务入库</div>
+            <div class="login-feature"><span class="dot" />AI 识别表格结构，人工确认后事务入库</div>
             <div class="login-feature"><span class="dot" />班级看板 / 年级对比 / 学生档案</div>
             <div class="login-feature"><span class="dot" />数据范围按角色隔离，导入可追溯</div>
           </div>
         </div>
         <p style="font-size: 12px; color: var(--ink-faint)">
-          v0.4.0 · 初中文化科目 · 单班本机部署
+          v0.5.0 · 湖南初中 · 单机部署
         </p>
       </section>
 

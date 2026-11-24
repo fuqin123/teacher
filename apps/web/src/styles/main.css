@@ -1882,3 +1882,111 @@ td .stu .ava {
     display: none;
   }
 }
+/* Dialogs（基础数据维护） */
+.modal-mask {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.38);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  z-index: 80;
+}
+
+.modal {
+  width: 100%;
+  max-width: 580px;
+  background: var(--surface);
+  border-radius: 16px;
+  box-shadow: 0 24px 60px rgba(15, 23, 42, 0.2);
+  overflow: hidden;
+  animation: modal-in 0.16s ease-out;
+}
+
+@keyframes modal-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.modal-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--line);
+}
+
+.modal-head h3 {
+  font-size: 15px;
+}
+
+.modal-body {
+  padding: 18px 20px;
+  max-height: 66vh;
+  overflow-y: auto;
+}
+
+.modal-foot {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  padding: 14px 20px;
+  border-top: 1px solid var(--line);
+  background: #fbfcfe;
+}
+
+.row-actions {
+  display: flex;
+  gap: 6px;
+  justify-content: flex-end;
+}
+
+.checkbox-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: var(--ink-2);
+}
+
+/* 班级看板底部：分数段分布 + 临界生 */
+.dashboard-bottom {
+  align-items: stretch;
+}
+
+.chart-card {
+  display: flex;
+  flex-direction: column;
+}
+
+.chart-box.fill {
+  flex: 1 1 auto;
+  height: auto;
+  min-height: 320px;
+  padding: 4px 12px 6px;
+}
+
+.chart-box.fill .chart-el {
+  height: 100%;
+}
+
+.card-foot-note {
+  margin-top: 2px;
+  padding: 10px 24px 16px;
+  border-top: 1px dashed #eef2f8;
+  font-size: 12px;
+  color: var(--ink-faint);
+}
+
+.borderline-wrap {
+  flex: 1 1 auto;
+  overflow-y: auto;
+  max-height: 520px;
+}
