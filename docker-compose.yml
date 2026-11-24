@@ -5,11 +5,11 @@ services:
     restart: unless-stopped
     environment:
       POSTGRES_USER: scorelens
-      POSTGRES_PASSWORD: scorelens
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-scorelens}
       POSTGRES_DB: scorelens
       TZ: Asia/Shanghai
     ports:
-      - "5432:5432"
+      - "127.0.0.1:5432:5432"
     volumes:
       - scorelens-pgdata:/var/lib/postgresql/data
     healthcheck:
