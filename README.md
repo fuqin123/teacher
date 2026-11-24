@@ -2,14 +2,16 @@
 
 面向初中班主任、任课老师、年级主任的成绩导入与可视化分析系统。
 
-当前版本：**v0.3.0**。核心链路已打通：登录 → 班级范围 → 上传成绩表 → 手动映射 → 校验 → 事务入库 → 班级看板 / 年级对比 / 学生档案。
+当前版本：**v0.4.0**。核心链路已打通：登录 → 班级范围 → 上传成绩表 → 手动映射 → 校验 → 事务入库 → 班级看板 / 年级对比 / 学生档案。
 
-## v0.3.0 更新
+## v0.4.0 更新
 
-- Ubuntu 24.04 可通过 Docker Compose 直接部署 PostgreSQL、NestJS API 和 Vue Web/Caddy，宿主机无需安装 Node.js、pnpm、PostgreSQL 或 Caddy。
-- API、Web 增加多阶段 Docker 镜像；API 启动自动执行 Prisma 迁移，上传文件、数据库和 Caddy 证书均使用持久化卷。
-- 增加 API/Web 健康检查、根目录部署环境变量模板和 `COOKIE_SECURE` 配置，兼容 HTTPS 生产与隔离 HTTP 测试。
-- 部署文档补齐安装、HTTPS、备份恢复、升级回滚、故障排查和安全上线清单。
+- 数据库由 PostgreSQL 改为**本地 SQLite 单文件**：`apps/api/data/scorelens.db`，教师本机不再需要安装数据库服务或 Docker。
+- Prisma schema 去掉 PostgreSQL 原生类型，重建 SQLite 初始化迁移；枚举、`Json`、`Decimal` 由 Prisma 映射落库。
+- 会话存储改为内置的 `PrismaSessionStore`（`user_sessions` 表），移除 `connect-pg-simple` 与 `pg`；重启服务后登录态保留。
+- 新增 `pnpm db:reset`、`pnpm db:backup`（`VACUUM INTO` 一致性快照）；种子脚本改为按外键顺序清表。
+- Docker Compose 去掉 `postgres` 服务，数据库与上传文件共用 `app_data` 卷，备份快照直出到宿主机 `./backups`。
+- 业务功能与接口行为不变。
 
 ## 已实现
 
@@ -35,15 +37,15 @@
 ## 技术栈
 
 - 前端：Vue 3 + TypeScript + Vite + Pinia + Vue Query + ECharts
-- 后端：NestJS + Prisma + PostgreSQL + Zod
+- 后端：NestJS + Prisma + SQLite + Zod
 - 表格：SheetJS 读取，后续使用 exceljs 导出
-- 部署：Docker Compose（PostgreSQL + NestJS API + Vue Web/Caddy）
+- 部署：Docker Compose（NestJS API + Vue Web/Caddy，SQLite 数据卷）
 
 ## 目录
 
 ```text
 apps/
-  api/    NestJS API + Prisma
+  api/    NestJS API + Prisma（数据库文件在 apps/api/data/）
   web/    Vue 3 SPA
 packages/
   shared/ 前后端共享类型、Zod schema、纯函数
@@ -58,7 +60,8 @@ prototype/ 视觉原型
 
 - Node.js 24 LTS
 - pnpm 12+
-- Docker Desktop（本机只用来跑 PostgreSQL）
+
+无需安装 PostgreSQL、Docker 或任何数据库客户端。
 
 ### 2. 安装依赖
 
@@ -76,7 +79,7 @@ cp apps/api/.env.example apps/api/.env
 
 ```env
 NODE_ENV="development"
-DATABASE_URL="postgresql://scorelens:scorelens@localhost:5432/scorelens?schema=public"
+DATABASE_URL="file:../data/scorelens.db"
 SESSION_SECRET="change-me-to-a-long-random-string"
 APP_ORIGIN="http://localhost:5173"
 COOKIE_SECURE="false"
@@ -85,24 +88,19 @@ UPLOAD_DIR="./data/uploads"
 TZ="Asia/Shanghai"
 ```
 
+> `DATABASE_URL` 的相对路径以 `apps/api/prisma/schema.prisma` 所在目录为基准，因此默认落盘到 `apps/api/data/scorelens.db`。
 > API 默认端口是 `3100`，避免与 Docker Desktop 自身的 3000 端口冲突。前端 Vite 代理已指向 3100。
 
-### 4. 启动 PostgreSQL
+### 4. 迁移与种子
 
 ```bash
-pnpm db:up
-```
-
-### 5. 迁移与种子
-
-```bash
-pnpm db:migrate
-pnpm db:seed
+pnpm db:migrate   # 首次执行：创建 apps/api/data/scorelens.db 并应用迁移
+pnpm db:seed      # 可选：写入演示数据
 ```
 
 > `db:seed` 会清空并重建演示数据，仅用于开发/测试环境。不要对正式数据执行。
 
-### 6. 启动
+### 5. 启动
 
 ```bash
 pnpm dev
@@ -137,12 +135,20 @@ pnpm --filter @scorelens/web dev
 pnpm dev            # 启动前后端
 pnpm build          # 构建 shared + api + web
 pnpm typecheck      # 类型检查
-pnpm db:up          # 启动 PostgreSQL
-pnpm db:down        # 停止 PostgreSQL
 pnpm db:migrate     # 创建/应用迁移
+pnpm db:reset       # 重置数据库并重新迁移（清空数据）
 pnpm db:seed        # 重置演示数据
+pnpm db:backup      # 生成 SQLite 一致性快照到 apps/api/backups/
 pnpm db:studio      # Prisma Studio
 ```
+
+## 数据库与备份
+
+- 数据库就是一个文件：`apps/api/data/scorelens.db`（已被 Git 忽略）。上传的原始表格在 `apps/api/data/uploads/`。
+- 备份：`pnpm db:backup`，用 SQLite `VACUUM INTO` 生成快照到 `apps/api/backups/`，服务运行中也可执行。
+- 恢复：停止 API，把快照文件覆盖为 `apps/api/data/scorelens.db`，再启动。
+- 迁移数据库：在新机器安装依赖、复制 `.env`、执行 `pnpm db:migrate`，再把备份文件放进 `apps/api/data/`。
+- 当前按“一位教师、一个班级”使用设计；多人并发写入或多实例部署前需要迁移到 PostgreSQL（Prisma 只改 `provider` 与原生类型）。
 
 ## 导入格式
 
@@ -166,12 +172,12 @@ pnpm db:studio      # Prisma Studio
 
 ```bash
 cp .env.example .env
-# 修改 .env 中的密码、SESSION_SECRET、APP_ORIGIN 和 SITE_ADDRESS
+# 修改 .env 中的 SESSION_SECRET、APP_ORIGIN 和 SITE_ADDRESS
 docker compose up -d --build
 docker compose ps
 ```
 
-Compose 会启动 PostgreSQL、NestJS API 和 Caddy Web 三个容器；API 启动时自动执行 Prisma 迁移。默认数据库只绑定 `127.0.0.1:5432`，API 不发布宿主机端口。
+Compose 会启动 NestJS API 和 Caddy Web 两个容器；数据库为 `app_data` 卷内的 `scorelens.db`，API 启动时自动执行 Prisma 迁移，不发布任何数据库端口。备份快照写入宿主机 `./backups`。
 
 完整安装、HTTPS、演示数据、备份恢复、升级回滚和故障排查见 [Ubuntu Docker 部署文档](docs/06-部署文档.md)。
 
@@ -186,6 +192,7 @@ Compose 会启动 PostgreSQL、NestJS API 和 Caddy Web 三个容器；API 启�
 
 ## 版本
 
+- `v0.4.0`：数据库改为本地 SQLite 单文件，会话存储内置化，新增备份脚本，精简 Docker 编排。
 - `v0.3.0`：Ubuntu Docker Compose 全栈部署、自动迁移、健康检查、HTTPS/Cookie 配置与运维文档。
 - `v0.2.0`：主题化可搜索下拉、内容区留白优化、图表入场/切换动画、学生快速定位。
 - `v0.1.0`：脚手架 + 手动映射导入 + 班级看板 + 年级对比 + 学生档案 + 导入历史。

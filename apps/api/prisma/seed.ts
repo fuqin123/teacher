@@ -36,28 +36,28 @@ function clamp(value: number, min: number, max: number): number {
 }
 
 async function main() {
-  await prisma.$executeRawUnsafe(`
-    TRUNCATE TABLE
-      "audit_logs",
-      "score_change_logs",
-      "scores",
-      "import_batches",
-      "exam_subjects",
-      "exams",
-      "teaching_assignments",
-      "grade_directors",
-      "student_term_enrollments",
-      "students",
-      "classes",
-      "class_groups",
-      "subjects",
-      "grades",
-      "academic_terms",
-      "user_roles",
-      "users",
-      "app_settings"
-    RESTART IDENTITY CASCADE
-  `)
+  // SQLite 不支持 TRUNCATE ... CASCADE，按外键依赖顺序逐表清空。
+  await prisma.$transaction([
+    prisma.auditLog.deleteMany(),
+    prisma.scoreChangeLog.deleteMany(),
+    prisma.score.deleteMany(),
+    prisma.importBatch.deleteMany(),
+    prisma.examSubject.deleteMany(),
+    prisma.exam.deleteMany(),
+    prisma.teachingAssignment.deleteMany(),
+    prisma.gradeDirector.deleteMany(),
+    prisma.studentTermEnrollment.deleteMany(),
+    prisma.student.deleteMany(),
+    prisma.class.deleteMany(),
+    prisma.classGroup.deleteMany(),
+    prisma.subject.deleteMany(),
+    prisma.grade.deleteMany(),
+    prisma.academicTerm.deleteMany(),
+    prisma.userRole.deleteMany(),
+    prisma.user.deleteMany(),
+    prisma.appSetting.deleteMany(),
+    prisma.session.deleteMany(),
+  ])
 
   const [adminHash, directorHash, wangHash, zhangHash] = await Promise.all([
     hash('admin123'),

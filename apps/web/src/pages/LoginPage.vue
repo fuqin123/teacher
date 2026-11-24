@@ -28,7 +28,7 @@
           </div>
         </div>
         <p style="font-size: 12px; color: var(--ink-faint)">
-          v0.3.0 · 初中文化科目 · 单校部署
+          v0.4.0 · 初中文化科目 · 单班本机部署
         </p>
       </section>
 

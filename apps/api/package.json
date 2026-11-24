@@ -1,6 +1,6 @@
 {
   "name": "@scorelens/api",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "private": true,
   "scripts": {
     "dev": "nest start --watch",
@@ -10,8 +10,10 @@
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev",
     "prisma:deploy": "prisma migrate deploy",
+    "prisma:reset": "prisma migrate reset --force",
     "prisma:seed": "prisma db seed",
-    "prisma:studio": "prisma studio"
+    "prisma:studio": "prisma studio",
+    "db:backup": "tsx scripts/backup-db.ts"
   },
   "prisma": {
     "seed": "tsx prisma/seed.ts"
@@ -24,10 +26,8 @@
     "@node-rs/argon2": "^2.0.2",
     "@prisma/client": "^6.19.0",
     "@scorelens/shared": "workspace:*",
-    "connect-pg-simple": "^10.0.0",
     "express-session": "^1.18.2",
     "multer": "^2.0.2",
-    "pg": "^8.16.3",
     "reflect-metadata": "^0.2.2",
     "rxjs": "^7.8.2",
     "xlsx": "^0.18.5",
@@ -35,12 +35,10 @@
   },
   "devDependencies": {
     "@nestjs/cli": "^11.0.10",
-    "@types/connect-pg-simple": "^7.0.3",
     "@types/express": "^5.0.5",
     "@types/express-session": "^1.18.2",
     "@types/multer": "^2.0.0",
     "@types/node": "^24.10.1",
-    "@types/pg": "^8.15.6",
     "prisma": "^6.19.0",
     "tsx": "^4.21.0",
     "typescript": "^5.9.3"

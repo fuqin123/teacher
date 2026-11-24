@@ -3,27 +3,24 @@ import { NestFactory } from '@nestjs/core'
 import { ConfigService } from '@nestjs/config'
 import { NestExpressApplication } from '@nestjs/platform-express'
 import session from 'express-session'
-import connectPgSimple from 'connect-pg-simple'
-import { Pool } from 'pg'
 import { AppModule } from './app.module'
 import { ApiExceptionFilter } from './common/api-exception.filter'
+import { PrismaSessionStore } from './common/prisma-session.store'
+import { PrismaService } from './prisma/prisma.service'
+
+const SESSION_TTL_MS = 8 * 60 * 60 * 1000
 
 async function bootstrap() {
   const app = await NestFactory.create<NestExpressApplication>(AppModule)
   const config = app.get(ConfigService)
-
-  const pool = new Pool({ connectionString: config.getOrThrow<string>('DATABASE_URL') })
-  const PgSession = connectPgSimple(session)
+  const prisma = app.get(PrismaService)
   const cookieSecure = config.get<string>('COOKIE_SECURE')
 
   app.set('trust proxy', 1)
   app.use(
     session({
-      store: new PgSession({
-        pool,
-        tableName: 'user_sessions',
-        createTableIfMissing: true,
-      }),
+      // 会话写入同一个 SQLite 文件，重启后登录态保留，也无需额外部署会话中间件。
+      store: new PrismaSessionStore(prisma, SESSION_TTL_MS),
       name: 'scorelens.sid',
       secret: config.getOrThrow<string>('SESSION_SECRET'),
       resave: false,
@@ -35,7 +32,7 @@ async function bootstrap() {
           cookieSecure === undefined
             ? config.get<string>('NODE_ENV') === 'production'
             : cookieSecure === 'true',
-        maxAge: 8 * 60 * 60 * 1000,
+        maxAge: SESSION_TTL_MS,
       },
     }),
   )

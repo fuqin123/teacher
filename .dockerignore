@@ -5,8 +5,13 @@
 **/.env.*
 !**/.env.example
 data
+**/data
 uploads
+**/uploads
 backups
+**/backups
+*.db
+*.db-journal
 logs
 .qoder-credits
 .playwright-mcp

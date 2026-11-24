@@ -3,7 +3,7 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
+  provider = "sqlite"
   url      = env("DATABASE_URL")
 }
 
@@ -89,8 +89,8 @@ model AcademicTerm {
   schoolYear String    @map("school_year")
   termNo     Int       @map("term_no")
   name       String
-  startDate  DateTime? @map("start_date") @db.Date
-  endDate    DateTime? @map("end_date") @db.Date
+  startDate  DateTime? @map("start_date")
+  endDate    DateTime? @map("end_date")
   isCurrent  Boolean   @default(false) @map("is_current")
   createdAt  DateTime  @default(now()) @map("created_at")
 
@@ -186,7 +186,7 @@ model Subject {
   code             String          @unique
   name             String
   category         SubjectCategory @default(cultural)
-  defaultFullScore Decimal?        @map("default_full_score") @db.Decimal(5, 1)
+  defaultFullScore Decimal?        @map("default_full_score")
   isActive         Boolean         @default(true) @map("is_active")
   sortOrder        Int             @default(0) @map("sort_order")
 
@@ -232,7 +232,7 @@ model Exam {
   gradeId     String     @map("grade_id")
   name        String
   type        ExamType
-  heldAt      DateTime   @map("held_at") @db.Date
+  heldAt      DateTime   @map("held_at")
   status      ExamStatus @default(active)
   createdById String?    @map("created_by_id")
   createdAt   DateTime   @default(now()) @map("created_at")
@@ -254,7 +254,7 @@ model ExamSubject {
   id              String  @id @default(uuid())
   examId          String  @map("exam_id")
   subjectId       String  @map("subject_id")
-  fullScore       Decimal @db.Decimal(5, 1) @map("full_score")
+  fullScore       Decimal @map("full_score")
   includedInTotal Boolean @default(true) @map("included_in_total")
   sortOrder       Int     @default(0) @map("sort_order")
 
@@ -271,7 +271,7 @@ model Score {
   studentId     String   @map("student_id")
   subjectId     String   @map("subject_id")
   classId       String   @map("class_id")
-  score         Decimal? @db.Decimal(6, 2)
+  score         Decimal?
   isAbsent      Boolean  @default(false) @map("is_absent")
   importBatchId String?  @map("import_batch_id")
   updatedAt     DateTime @updatedAt @map("updated_at")
@@ -326,9 +326,9 @@ model ScoreChangeLog {
   examId       String            @map("exam_id")
   studentId    String            @map("student_id")
   subjectId    String            @map("subject_id")
-  oldScore     Decimal?          @db.Decimal(6, 2) @map("old_score")
+  oldScore     Decimal?          @map("old_score")
   oldAbsent    Boolean?          @map("old_absent")
-  newScore     Decimal?          @db.Decimal(6, 2) @map("new_score")
+  newScore     Decimal?          @map("new_score")
   newAbsent    Boolean?          @map("new_absent")
   action       ScoreChangeAction
   operatedById String            @map("operated_by_id")
@@ -368,4 +368,14 @@ model AppSetting {
   updatedAt DateTime @updatedAt @map("updated_at")
 
   @@map("app_settings")
+}
+
+/// 登录会话表，由 API 内置的 Prisma 会话存储维护（替代 connect-pg-simple）。
+model Session {
+  sid      String   @id
+  data     String
+  expireAt DateTime @map("expire_at")
+
+  @@index([expireAt])
+  @@map("user_sessions")
 }

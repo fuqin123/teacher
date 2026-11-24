@@ -68,8 +68,9 @@ export class RosterService {
         student: search
           ? {
               OR: [
-                { name: { contains: search, mode: 'insensitive' } },
-                { studentNo: { contains: search, mode: 'insensitive' } },
+                // SQLite 的 LIKE 对 ASCII 默认不区分大小写，无需 PostgreSQL 专属的 mode: 'insensitive'
+                { name: { contains: search } },
+                { studentNo: { contains: search } },
               ],
             }
           : undefined,

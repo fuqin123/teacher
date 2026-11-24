@@ -1,23 +1,4 @@
 services:
-  postgres:
-    image: postgres:16-alpine
-    container_name: scorelens-postgres
-    restart: unless-stopped
-    environment:
-      POSTGRES_USER: scorelens
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-scorelens}
-      POSTGRES_DB: scorelens
-      TZ: Asia/Shanghai
-    ports:
-      - "127.0.0.1:5432:5432"
-    volumes:
-      - scorelens-pgdata:/var/lib/postgresql/data
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U scorelens -d scorelens"]
-      interval: 5s
-      timeout: 5s
-      retries: 10
-
   api:
     build:
       context: .
@@ -25,7 +6,8 @@ services:
     restart: unless-stopped
     environment:
       NODE_ENV: production
-      DATABASE_URL: postgresql://scorelens:${POSTGRES_PASSWORD:-scorelens}@postgres:5432/scorelens?schema=public
+      # SQLite 单文件数据库，与上传目录共用一个持久化卷，容器重建后数据不丢。
+      DATABASE_URL: file:/app/data/scorelens.db
       SESSION_SECRET: ${SESSION_SECRET:-change-me-to-a-long-random-string}
       APP_ORIGIN: ${APP_ORIGIN:-http://localhost}
       COOKIE_SECURE: ${COOKIE_SECURE:-true}
@@ -33,10 +15,9 @@ services:
       UPLOAD_DIR: /app/data/uploads
       TZ: Asia/Shanghai
     volumes:
-      - uploads:/app/data/uploads
-    depends_on:
-      postgres:
-        condition: service_healthy
+      - app_data:/app/data
+      # 备份快照直接落到宿主机 ./backups，便于打包拷走
+      - ./backups:/app/backups
     healthcheck:
       test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3100/api/v1/health').then((response) => { if (!response.ok) process.exit(1) }).catch(() => process.exit(1))"]
       interval: 10s
@@ -69,7 +50,6 @@ services:
       start_period: 10s
 
 volumes:
-  scorelens-pgdata:
-  uploads:
+  app_data:
   caddy_data:
   caddy_config:
