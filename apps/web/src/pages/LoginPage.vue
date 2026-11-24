@@ -74,7 +74,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue'
+import { onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
 
@@ -86,6 +86,12 @@ const username = ref('')
 const password = ref('')
 const busy = ref(false)
 const error = ref('')
+
+onMounted(() => {
+  if (route.query.expired === '1') {
+    error.value = '登录状态已失效，请重新登录'
+  }
+})
 
 const accounts = [
   { label: '班主任', username: 'wang', password: 'wang123' },

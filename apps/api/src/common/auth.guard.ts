@@ -1,4 +1,5 @@
 import { CanActivate, ExecutionContext, Injectable, UnauthorizedException } from '@nestjs/common'
+import { AUTH_REQUIRED_CODE } from '@scorelens/shared'
 import { Reflector } from '@nestjs/core'
 import { Request } from 'express'
 import { IS_PUBLIC_KEY } from './public.decorator'
@@ -16,7 +17,7 @@ export class AuthGuard implements CanActivate {
 
     const request = context.switchToHttp().getRequest<Request>()
     if (!request.session?.userId) {
-      throw new UnauthorizedException('请先登录')
+      throw new UnauthorizedException({ code: AUTH_REQUIRED_CODE, message: '请先登录' })
     }
     return true
   }

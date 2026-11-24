@@ -1,7 +1,7 @@
 import { computed, ref, watch } from 'vue'
 import { defineStore } from 'pinia'
 import type { ClassOption, ExamOption, SubjectOption, TermOption } from '@scorelens/shared'
-import { api } from '../api/client'
+import { ApiError, api } from '../api/client'
 import { useAuthStore } from './auth'
 
 export const useContextStore = defineStore('context', () => {
@@ -72,6 +72,8 @@ export const useContextStore = defineStore('context', () => {
       }
       loaded.value = true
     } catch (err) {
+      // 401 由全局处理器跳转登录页，这里不再渲染“请先登录”
+      if (err instanceof ApiError && err.status === 401) return
       error.value = err instanceof Error ? err.message : '加载基础数据失败'
     } finally {
       loading.value = false

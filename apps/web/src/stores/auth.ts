@@ -62,6 +62,12 @@ export const useAuthStore = defineStore('auth', () => {
     }
   }
 
+  /** 会话失效时清空登录态（由全局 401 处理调用） */
+  function clear() {
+    user.value = null
+    initialized.value = true
+  }
+
   function hasRole(roles: RoleCode[] | undefined) {
     if (!roles || roles.length === 0) return true
     return Boolean(user.value?.roles.some((role) => roles.includes(role)))
@@ -77,6 +83,7 @@ export const useAuthStore = defineStore('auth', () => {
     fetchMe,
     login,
     logout,
+    clear,
     hasRole,
   }
 })

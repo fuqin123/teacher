@@ -1,3 +1,4 @@
+import { AUTH_REQUIRED_CODE } from '@scorelens/shared'
 import type {
   AdminClassRow,
   AdminGradeRow,
@@ -39,6 +40,16 @@ import type {
 } from '@scorelens/shared'
 
 const BASE = '/api/v1'
+
+/**
+ * 会话失效（401 + AUTH_REQUIRED）时的统一处理，由 main.ts 注册。
+ * 目的：跳回登录页并保留来源地址，而不是把“请先登录”当业务错误显示在页面上。
+ */
+let unauthorizedHandler: (() => void) | null = null
+
+export function setUnauthorizedHandler(handler: (() => void) | null) {
+  unauthorizedHandler = handler
+}
 
 export class ApiError extends Error {
   status: number
@@ -83,6 +94,9 @@ async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
         ? `${body.message}：${details}`
         : body.message
       : `请求失败（${response.status}）`
+    if (response.status === 401 && body?.code === AUTH_REQUIRED_CODE) {
+      unauthorizedHandler?.()
+    }
     throw new ApiError(response.status, body, message)
   }
 

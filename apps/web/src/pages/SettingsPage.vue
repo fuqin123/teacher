@@ -97,7 +97,7 @@
   </div>
 
   <div class="card mt-16">
-    <div class="card-head"><h3>系统信息</h3><span class="chip gray">v0.6.0</span></div>
+    <div class="card-head"><h3>系统信息</h3><span class="chip gray">v0.6.1</span></div>
     <div class="setting-row" style="padding: 14px 20px; border-bottom: 1px solid #f1f5f9">
       <div>
         <div style="font-size: 13.5px; font-weight: 600">当前学期</div>
@@ -131,7 +131,7 @@
       <span class="chip mint">导出 Excel / 打印</span>
     </div>
     <div class="hint" style="padding: 0 24px 20px">
-      当前 0.6.0 已覆盖：管理员可配置 AI 接口、多级表头成绩表导入、标准模板下载、基础数据维护、班级看板与分析。
+      当前 0.6.1 已覆盖：管理员可配置 AI 接口、多级表头成绩表导入、标准模板下载、基础数据维护、班级看板与分析。
     </div>
   </div>
 </template>

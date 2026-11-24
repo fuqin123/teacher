@@ -10,7 +10,8 @@ services:
       DATABASE_URL: file:/app/data/scorelens.db
       SESSION_SECRET: ${SESSION_SECRET:-change-me-to-a-long-random-string}
       APP_ORIGIN: ${APP_ORIGIN:-http://localhost}
-      COOKIE_SECURE: ${COOKIE_SECURE:-true}
+      # 留空时由 APP_ORIGIN 的协议自动推导（http → false，https → true）
+      COOKIE_SECURE: ${COOKIE_SECURE:-}
       PORT: 3100
       UPLOAD_DIR: /app/data/uploads
       TZ: Asia/Shanghai

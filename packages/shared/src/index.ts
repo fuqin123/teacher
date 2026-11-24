@@ -16,6 +16,12 @@ export const importStatuses = [
 ] as const
 export type ImportStatus = (typeof importStatuses)[number]
 
+/**
+ * 未登录/会话失效的错误码。前端据此跳转登录页，
+ * 避免把“请先登录”当作普通业务错误弹在页面里。
+ */
+export const AUTH_REQUIRED_CODE = 'AUTH_REQUIRED'
+
 export const PASS_RATIO = 0.6
 export const EXCELLENT_RATIO = 0.8
 export const ABSENT_MARKERS = ['缺考', '缺', '免考', '—', '-', '/', '／'] as const
